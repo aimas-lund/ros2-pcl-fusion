@@ -7,7 +7,7 @@
       },
       "includePath": [
         "/opt/ros/jazzy/include/**",
-        "/home/aimas/repos/ros2-pcl-fusion/src/include/**",
+        "${workspaceFolder}/src/include/**",
         "/usr/include/**"
       ],
       "name": "ros2",
