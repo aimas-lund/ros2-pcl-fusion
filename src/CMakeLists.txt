@@ -9,6 +9,10 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(message_filters REQUIRED)
 
 add_library(fusion_node SHARED
   src/fusion_node.cpp
@@ -21,12 +25,20 @@ target_include_directories(fusion_node PUBLIC
 ament_target_dependencies(fusion_node
   rclcpp
   std_msgs
+  tf2
+  tf2_ros
+  sensor_msgs
+  message_filters
 )
 
 add_executable(fusion_node_exe src/main.cpp)
 target_link_libraries(fusion_node_exe fusion_node)
 ament_target_dependencies(fusion_node_exe
   rclcpp
+  tf2
+  tf2_ros
+  sensor_msgs
+  message_filters
 )
 
 install(TARGETS
@@ -42,6 +54,10 @@ install(DIRECTORY include/
 )
 
 install(DIRECTORY launch/
+  DESTINATION share/${PROJECT_NAME}
+)
+
+install(DIRECTORY config/
   DESTINATION share/${PROJECT_NAME}
 )
 

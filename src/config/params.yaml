@@ -1,0 +1,7 @@
+fusion_node:
+  ros__parameters:
+    input_topics: [
+      "/lidar1/points",
+      "/lidar2/points"
+    ]
+    output_topic: "/fused_pointcloud"
