@@ -6,11 +6,12 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_sensor_msgs/tf2_sensor_msgs.hpp>
 
-#include <cstdint>
+#include "fusion/params.hpp"
 #include <memory>
-#include <string>
-#include <vector>
 
 namespace fusion
 {
@@ -21,16 +22,11 @@ public:
   explicit FusionNode(const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
 
 private:
-  struct FusionNodeParameters
-  {
-    uint32_t queue_size;
-    double slop;
-    std::vector<std::string> input_topics;
-    std::string output_topic;
-  };
 
   FusionNodeParameters handleParams();
-  void sync_callback(
+  sensor_msgs::msg::PointCloud2 transformToOutputFrame(
+    const sensor_msgs::msg::PointCloud2 & cloud);
+  void syncCallback(
     const sensor_msgs::msg::PointCloud2::ConstSharedPtr & a,
     const sensor_msgs::msg::PointCloud2::ConstSharedPtr & b);
 
@@ -41,6 +37,9 @@ private:
       sensor_msgs::msg::PointCloud2,
       sensor_msgs::msg::PointCloud2>>> sync_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_;
+  FusionNodeParameters params_{};
+  tf2_ros::Buffer tf_buffer_;
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 };
 
 }  // namespace fusion

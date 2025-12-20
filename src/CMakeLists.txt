@@ -13,6 +13,7 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(message_filters REQUIRED)
+find_package(tf2_sensor_msgs REQUIRED)
 
 add_library(fusion_node SHARED
   src/fusion_node.cpp
@@ -29,6 +30,7 @@ ament_target_dependencies(fusion_node
   tf2_ros
   sensor_msgs
   message_filters
+  tf2_sensor_msgs
 )
 
 add_executable(fusion_node_exe src/main.cpp)
@@ -39,6 +41,7 @@ ament_target_dependencies(fusion_node_exe
   tf2_ros
   sensor_msgs
   message_filters
+  tf2_sensor_msgs
 )
 
 install(TARGETS
