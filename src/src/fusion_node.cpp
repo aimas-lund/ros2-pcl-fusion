@@ -170,11 +170,9 @@ void FusionNode::syncCallback(
   const sensor_msgs::msg::PointCloud2::ConstSharedPtr &a,
   const sensor_msgs::msg::PointCloud2::ConstSharedPtr &b) 
 {
-  RCLCPP_INFO(this->get_logger(), "Synchronized clouds received: A timestamp %u, B timestamp %u", a->header.stamp.sec, b->header.stamp.sec);
-
   auto fused_cloud = fuse(a, b);
   if (!fused_cloud) {
-    RCLCPP_WARN(this->get_logger(), "Fusion failed; skipping publish");
+    RCLCPP_WARN(this->get_logger(), "Fusion failed. Skipping publish");
     return;
   }
   pub_->publish(std::move(fused_cloud));
@@ -372,6 +370,8 @@ sensor_msgs::msg::PointCloud2::UniquePtr FusionNode::fuse(
   if (bytes_b != 0U) {
     std::memcpy(fused->data.data() + bytes_a, transformed_b->data.data(), bytes_b);
   }
+
+  fused->header.stamp = this->get_clock()->now();
 
   return fused;
 }
