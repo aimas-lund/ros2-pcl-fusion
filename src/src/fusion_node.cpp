@@ -6,7 +6,7 @@
 namespace fusion
 {
 
-using namespace std::chrono_literals;
+   using namespace std::chrono_literals;
 
 FusionNode::FusionNode(const rclcpp::NodeOptions & options)
 : rclcpp::Node("fusion_node", options)
