@@ -2,7 +2,9 @@
 
 #include "fusion/utils.hpp"
 
+#include <cstring>
 #include <functional>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -24,9 +26,8 @@ FusionNode::FusionNode(const rclcpp::NodeOptions & options)
   cloudA_.subscribe(this, params_.input.topics[0], qos.get_rmw_qos_profile());
   cloudB_.subscribe(this, params_.input.topics[1], qos.get_rmw_qos_profile());
 
-  pub_ = this->create_publisher<std_msgs::msg::String>(
-    params_.output.topic,
-    params_.input.sync.queue_size);
+  pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+    params_.output.topic, qos);
 
   sync_ = std::make_shared<
       message_filters::Synchronizer<
@@ -43,7 +44,8 @@ FusionNode::FusionNode(const rclcpp::NodeOptions & options)
   sync_->registerCallback(
     std::bind(&FusionNode::syncCallback, this, std::placeholders::_1, std::placeholders::_2)
   );
-  sync_->setAgePenalty(params_.input.sync.slop);
+  const auto [slop_sec, slop_nsec] = params_.input.sync.slop;
+  sync_->setMaxIntervalDuration(rclcpp::Duration(slop_sec, slop_nsec));
 }
 
 /**
@@ -66,25 +68,32 @@ FusionNodeParameters FusionNode::handleParams()
     declare_if_needed(
       "input.sync.queue_size",
       rclcpp::ParameterValue(static_cast<int>(default_queue_size)));
-    declare_if_needed("input.sync.slop", rclcpp::ParameterValue(0.1));
+    declare_if_needed(
+      "input.sync.slop_ns",
+      rclcpp::ParameterValue(static_cast<int64_t>(100000000LL)));
     declare_if_needed(
       "input.topics",
-      rclcpp::ParameterValue(std::vector<std::string>{"points1", "points2"}));
+      rclcpp::ParameterValue(std::vector<std::string>{"/cloud1", "/cloud2"}));
     declare_if_needed(
       "input.frame_ids",
       rclcpp::ParameterValue(std::vector<std::string>{"frame1", "frame2"}));
     declare_if_needed(
       "output.topic",
-      rclcpp::ParameterValue(std::string{"/fused_pointcloud"}));
+      rclcpp::ParameterValue(std::string{"/fusion/out"}));
     declare_if_needed(
       "output.frame_id",
-      rclcpp::ParameterValue(std::string{"fused_frame"}));
+      rclcpp::ParameterValue(std::string{"lidar"}));
     declare_if_needed(
       "transform.type",
       rclcpp::ParameterValue(std::string{"static"}));
 
     const auto queue_size_param = this->get_parameter("input.sync.queue_size").as_int();
-    params.input.sync.slop = this->get_parameter("input.sync.slop").as_double();
+    const auto slop_ns = this->get_parameter("input.sync.slop_ns").as_int();
+    {
+      const auto sec = static_cast<int32_t>(slop_ns / 1000000000LL);
+      const auto nsec = static_cast<uint32_t>(slop_ns % 1000000000LL);
+      params.input.sync.slop = std::make_tuple(sec, nsec);
+    }
     params.input.topics = this->get_parameter("input.topics").as_string_array();
     params.input.frame_ids = this->get_parameter("input.frame_ids").as_string_array();
     params.output.topic = this->get_parameter("output.topic").as_string();
@@ -140,12 +149,11 @@ FusionNodeParameters FusionNode::handleParams()
       params.input.frame_ids[0].c_str(),
       params.input.frame_ids[1].c_str());
     RCLCPP_INFO(this->get_logger(), "  input.sync.queue_size: %u", params.input.sync.queue_size);
-    RCLCPP_INFO(this->get_logger(), "  input.sync.slop: %f", params.input.sync.slop);
+    RCLCPP_INFO(this->get_logger(), "  input.sync.slop_ns: %ld", static_cast<long>(slop_ns));
     RCLCPP_INFO(this->get_logger(), "  output.topic: %s", params.output.topic.c_str());
     RCLCPP_INFO(this->get_logger(), "  output.frame_id: %s", params.output.frame_id.c_str());
     RCLCPP_INFO(this->get_logger(), "  transform.type: %u", static_cast<uint32_t>(params.transform.type));
     
-
     return params;
   } catch (const rclcpp::ParameterTypeException & ex) {
     RCLCPP_FATAL(this->get_logger(), "Parameter type error: %s", ex.what());
@@ -153,50 +161,219 @@ FusionNodeParameters FusionNode::handleParams()
   }
 }
 
+/**
+ * Callback for synchronized point clouds
+ * @param a First point cloud
+ * @param b Second point cloud
+ */
 void FusionNode::syncCallback(
   const sensor_msgs::msg::PointCloud2::ConstSharedPtr &a,
   const sensor_msgs::msg::PointCloud2::ConstSharedPtr &b) 
 {
   RCLCPP_INFO(this->get_logger(), "Synchronized clouds received: A timestamp %u, B timestamp %u", a->header.stamp.sec, b->header.stamp.sec);
 
-  const auto transformed_a = transformToOutputFrame(*a);
-  const auto transformed_b = transformToOutputFrame(*b);
-
-  auto message = std_msgs::msg::String();
-  message.data = "Synced Data!";
-  pub_->publish(message);
-  (void)transformed_a;
-  (void)transformed_b;
+  auto fused_cloud = fuse(a, b);
+  if (!fused_cloud) {
+    RCLCPP_WARN(this->get_logger(), "Fusion failed; skipping publish");
+    return;
+  }
+  pub_->publish(std::move(fused_cloud));
 }
 
-sensor_msgs::msg::PointCloud2 FusionNode::transformToOutputFrame(
-  const sensor_msgs::msg::PointCloud2 & cloud)
+/** 
+ * Lookup transform from source frame to output frame
+ * Caches static transforms for efficiency
+ * @param source_frame The source frame to transform from
+ * @return The TransformStamped from source_frame to output frame
+*/
+geometry_msgs::msg::TransformStamped FusionNode::lookupTransformToOutputFrame(
+  const std::string & source_frame)
 {
-  if (cloud.header.frame_id == params_.output.frame_id) {
+  if (params_.transform.type == TransformType::STATIC) {
+    const auto it = static_tf_cache_.find(source_frame);
+    if (it != static_tf_cache_.end()) {
+      return it->second;
+    }
+
+    auto transform = tf_buffer_.lookupTransform(
+      params_.output.frame_id,
+      source_frame,
+      tf2::TimePointZero);
+    static_tf_cache_.emplace(source_frame, transform);
+    return transform;
+  }
+
+  return tf_buffer_.lookupTransform(
+    params_.output.frame_id,
+    source_frame,
+    tf2::TimePointZero);
+}
+
+/**
+ * Transform point cloud to output frame
+ * @param cloud The input point cloud
+ * @return The transformed point cloud in the output frame
+ */
+sensor_msgs::msg::PointCloud2::ConstSharedPtr FusionNode::transformToOutputFrame(
+  const sensor_msgs::msg::PointCloud2::ConstSharedPtr & cloud)
+{
+  if (!cloud) {
+    return {};
+  }
+
+  if (cloud->header.frame_id == params_.output.frame_id) {
     return cloud;
   }
 
   try {
-    const auto transform = tf_buffer_.lookupTransform(
-      params_.output.frame_id,
-      cloud.header.frame_id,
-      tf2::TimePointZero);
+    const auto transform = lookupTransformToOutputFrame(cloud->header.frame_id);
 
-    sensor_msgs::msg::PointCloud2 transformed;
-    tf2::doTransform(cloud, transformed, transform);
-    transformed.header.frame_id = params_.output.frame_id;
-    transformed.header.stamp = transform.header.stamp;
+    auto transformed = std::make_shared<sensor_msgs::msg::PointCloud2>();
+    tf2::doTransform(*cloud, *transformed, transform);
+    transformed->header.frame_id = params_.output.frame_id;
+    transformed->header.stamp = transform.header.stamp;
     return transformed;
   } catch (const tf2::TransformException & ex) {
     RCLCPP_WARN(this->get_logger(),
       "Failed to transform cloud from '%s' to '%s': %s",
-      cloud.header.frame_id.c_str(),
+      cloud->header.frame_id.c_str(),
       params_.output.frame_id.c_str(),
       ex.what());
-    return cloud;
+    return {};
   }
 }
 
+/**
+ * Check if two PointCloud2 messages have matching layouts
+ * @param a First point cloud
+ * @param b Second point cloud
+ * @return True if layouts match, false otherwise
+ */
+static bool hasMatchingPointCloud2Layout(
+  const sensor_msgs::msg::PointCloud2 & a,
+  const sensor_msgs::msg::PointCloud2 & b)
+{
+  if (a.point_step != b.point_step) {
+    return false;
+  }
+  if (a.is_bigendian != b.is_bigendian) {
+    return false;
+  }
+  if (a.fields.size() != b.fields.size()) {
+    return false;
+  }
+  for (size_t i = 0; i < a.fields.size(); ++i) {
+    const auto & fa = a.fields[i];
+    const auto & fb = b.fields[i];
+    if (fa.name != fb.name || fa.offset != fb.offset || fa.datatype != fb.datatype || fa.count != fb.count) {
+      return false;
+    }
+  }
+  return true;
+}
 
+/**
+ * Fuse two point clouds into one
+ * @param a First point cloud
+ * @param b Second point cloud
+ * @return The fused point cloud
+ */
+sensor_msgs::msg::PointCloud2::UniquePtr FusionNode::fuse(
+  const sensor_msgs::msg::PointCloud2::ConstSharedPtr & a,
+  const sensor_msgs::msg::PointCloud2::ConstSharedPtr & b)
+{
+  const auto transformed_a = transformToOutputFrame(a);
+  const auto transformed_b = transformToOutputFrame(b);
+
+  if (!transformed_a || !transformed_b) {
+    return {};
+  }
+
+  const bool areFramesMismatched = transformed_a->header.frame_id != params_.output.frame_id ||
+      transformed_b->header.frame_id != params_.output.frame_id;
+  if (areFramesMismatched) {
+    RCLCPP_WARN(this->get_logger(), "Transformed clouds are not in output frame; skipping fusion");
+    return {};
+  }
+
+  if (!hasMatchingPointCloud2Layout(*transformed_a, *transformed_b)) {
+    RCLCPP_WARN(this->get_logger(), "PointCloud2 layouts differ; cannot fast-concatenate");
+    return {};
+  }
+
+  const size_t step = transformed_a->point_step;
+  const bool isPointStepInvalid = step == 0U;
+  if (isPointStepInvalid) {
+    RCLCPP_WARN(this->get_logger(), "Invalid point_step=0; cannot fuse");
+    return {};
+  }
+
+  const size_t bytes_a = transformed_a->data.size();
+  const size_t bytes_b = transformed_b->data.size();
+  const bool isDataSizeInvalid = (bytes_a % step != 0U) || (bytes_b % step != 0U);
+  if (isDataSizeInvalid) {
+    RCLCPP_WARN(this->get_logger(), "PointCloud2 data not divisible by point_step; cannot fuse");
+    return {};
+  }
+
+  const size_t points_a = bytes_a / step;
+  const size_t points_b = bytes_b / step;
+  const bool isPointCountOverflowing = points_a > static_cast<size_t>(std::numeric_limits<uint32_t>::max()) ||
+      points_b > static_cast<size_t>(std::numeric_limits<uint32_t>::max()) ||
+      (points_a + points_b) > static_cast<size_t>(std::numeric_limits<uint32_t>::max());
+  if (isPointCountOverflowing) {
+    RCLCPP_WARN(this->get_logger(), "Fused point count exceeds uint32_t; cannot fuse");
+    return {};
+  }
+
+  if (bytes_a > (std::numeric_limits<size_t>::max() - bytes_b)) {
+    RCLCPP_WARN(this->get_logger(), "Fused data size overflows size_t; cannot fuse");
+    return {};
+  }
+
+  const size_t fused_points = points_a + points_b;
+  if (fused_points != 0U && step > (std::numeric_limits<size_t>::max() / fused_points)) {
+    RCLCPP_WARN(this->get_logger(), "Fused row_step overflows size_t; cannot fuse");
+    return {};
+  }
+
+  const size_t fused_row_step = fused_points * step;
+  if (fused_row_step > static_cast<size_t>(std::numeric_limits<uint32_t>::max())) {
+    RCLCPP_WARN(this->get_logger(), "Fused row_step exceeds uint32_t; cannot fuse");
+    return {};
+  }
+
+  const size_t fused_bytes = bytes_a + bytes_b;
+  if (fused_bytes != fused_row_step) {
+    RCLCPP_WARN(this->get_logger(), "Inconsistent fused sizes; cannot fuse");
+    return {};
+  }
+
+  auto fused = std::make_unique<sensor_msgs::msg::PointCloud2>();
+
+  fused->header.frame_id = params_.output.frame_id;
+  fused->header.stamp = (rclcpp::Time(transformed_a->header.stamp) >= rclcpp::Time(transformed_b->header.stamp))
+                          ? transformed_a->header.stamp
+                          : transformed_b->header.stamp;
+
+  fused->fields = transformed_a->fields;
+  fused->is_bigendian = transformed_a->is_bigendian;
+  fused->point_step = transformed_a->point_step;
+  fused->is_dense = transformed_a->is_dense && transformed_b->is_dense;
+
+  fused->height = 1U;
+  fused->width = static_cast<uint32_t>(fused_points);
+  fused->row_step = static_cast<uint32_t>(fused_row_step);
+
+  fused->data.resize(fused_bytes);
+  if (bytes_a != 0U) {
+    std::memcpy(fused->data.data(), transformed_a->data.data(), bytes_a);
+  }
+  if (bytes_b != 0U) {
+    std::memcpy(fused->data.data() + bytes_a, transformed_b->data.data(), bytes_b);
+  }
+
+  return fused;
+}
 
 }  // namespace fusion

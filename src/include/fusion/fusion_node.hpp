@@ -1,7 +1,6 @@
 #pragma once
 
 #include <rclcpp/rclcpp.hpp>
-#include <std_msgs/msg/string.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h>
@@ -12,6 +11,10 @@
 
 #include "fusion/params.hpp"
 #include <memory>
+#include <string>
+#include <unordered_map>
+
+#include <geometry_msgs/msg/transform_stamped.hpp>
 
 namespace fusion
 {
@@ -24,9 +27,15 @@ public:
 private:
 
   FusionNodeParameters handleParams();
-  sensor_msgs::msg::PointCloud2 transformToOutputFrame(
-    const sensor_msgs::msg::PointCloud2 & cloud);
+  geometry_msgs::msg::TransformStamped lookupTransformToOutputFrame(
+    const std::string & source_frame);
+  sensor_msgs::msg::PointCloud2::ConstSharedPtr transformToOutputFrame(
+    const sensor_msgs::msg::PointCloud2::ConstSharedPtr & cloud);
   void syncCallback(
+    const sensor_msgs::msg::PointCloud2::ConstSharedPtr & a,
+    const sensor_msgs::msg::PointCloud2::ConstSharedPtr & b
+  );
+  sensor_msgs::msg::PointCloud2::UniquePtr fuse(
     const sensor_msgs::msg::PointCloud2::ConstSharedPtr & a,
     const sensor_msgs::msg::PointCloud2::ConstSharedPtr & b);
 
@@ -36,10 +45,12 @@ private:
     message_filters::sync_policies::ApproximateTime<
       sensor_msgs::msg::PointCloud2,
       sensor_msgs::msg::PointCloud2>>> sync_;
-  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_;
   FusionNodeParameters params_{};
   tf2_ros::Buffer tf_buffer_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+
+  std::unordered_map<std::string, geometry_msgs::msg::TransformStamped> static_tf_cache_;
 };
 
 }  // namespace fusion

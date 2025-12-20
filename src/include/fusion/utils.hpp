@@ -13,6 +13,16 @@
 namespace fusion
 {
 
+  /**
+   * Generic enum parser from string
+   * @tparam Enum The enum type to parse
+   * @param value The string value to parse
+   * @param mapping An initializer list of string-enum pairs for mapping
+   * @param parameter_name The name of the parameter (for error messages)
+   * @return The parsed enum value
+   * @throws std::invalid_argument if the value is not found in the mapping
+   * @note Parameter strings are parsed to lowercase before comparison
+   */
 template <typename Enum>
 inline Enum parseEnum(
   std::string_view value,

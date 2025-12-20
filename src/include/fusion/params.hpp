@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <tuple>
 #include <vector>
 #include <cstdint>
 
@@ -21,7 +22,7 @@ struct Input
     struct Sync
     {
     uint32_t queue_size;
-    double slop;
+    std::tuple<int32_t, uint32_t> slop{0, 0};
     } sync;
 } input;
 

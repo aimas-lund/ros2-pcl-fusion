@@ -2,18 +2,18 @@ fusion_node:
   ros__parameters:
     input:
       topics: [
-        "/blueview/points2",
-        "/blueview/points2"
+        "/your/cloud1", # <-- insert input topic 
+        "/your/cloud2"  # <-- insert input topic 
       ]
       frame_ids: [
-        "blueview",
-        "blueview"
+        "your_frame1",  # <-- insert frame ID for cloud1
+        "your_frame2"   # <-- insert frame ID for cloud2
       ]
       sync: 
-        queue_size: 10  # queue size for message filtering
-        slop: 0.1       # seconds for approximate time sync 
+        queue_size: 10      # queue size for message filtering
+        slop_ns: 100000000  # for approximate time sync
     output:
-      topic: "/fused_pointcloud"
-      frame_id: "fused_frame"
+      topic: "/fused_pointcloud"  # <-- insert desired output topic
+      frame_id: "fused_frame"     # <-- insert desired output frame ID
     transform:
-      type: "static"  # "static" or "dynamic"
+      type: "static"  # "static" or "dynamic" transform lookup
