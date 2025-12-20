@@ -19,13 +19,15 @@ struct FusionNodeParameters
     {
         struct Sync
         {
-            uint32_t queue_size{0U};
-            std::tuple<int32_t, uint32_t> slop{0, 0};
+            uint32_t queue_size;
+            std::tuple<int32_t, uint32_t> slop;
+
+            constexpr Sync() : queue_size(0U), slop{0, 0} {}
         };
 
         std::vector<std::string> topics;
         std::vector<std::string> frame_ids;
-        Sync sync{};
+        Sync sync;
     } input;
 
     struct Output
@@ -34,10 +36,12 @@ struct FusionNodeParameters
         std::string frame_id;
     } output;
 
-    struct Transform
+    struct TransformConfig
     {
-        TransformType type{TransformType::STATIC};  // "static" or "dynamic"
-    } transform;
+        TransformType type;  // "static" or "dynamic"
+
+        constexpr TransformConfig() : type(TransformType::STATIC) {}
+    } transform_cfg;
 };
 
 }  // namespace fusion

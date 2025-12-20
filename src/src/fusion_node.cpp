@@ -101,7 +101,7 @@ FusionNodeParameters FusionNode::handleParams()
 
     const auto transform_type_str = this->get_parameter("transform.type").as_string();
     try {
-      params.transform.type = parseTransformType(transform_type_str);
+      params.transform_cfg.type = parseTransformType(transform_type_str);
     } catch (const std::invalid_argument & ex) {
       RCLCPP_FATAL(
         this->get_logger(),
@@ -152,7 +152,7 @@ FusionNodeParameters FusionNode::handleParams()
     RCLCPP_INFO(this->get_logger(), "  input.sync.slop_ns: %ld", static_cast<long>(slop_ns));
     RCLCPP_INFO(this->get_logger(), "  output.topic: %s", params.output.topic.c_str());
     RCLCPP_INFO(this->get_logger(), "  output.frame_id: %s", params.output.frame_id.c_str());
-    RCLCPP_INFO(this->get_logger(), "  transform.type: %u", static_cast<uint32_t>(params.transform.type));
+    RCLCPP_INFO(this->get_logger(), "  transform.type: %u", static_cast<uint32_t>(params.transform_cfg.type));
     
     return params;
   } catch (const rclcpp::ParameterTypeException & ex) {
@@ -192,7 +192,7 @@ void FusionNode::syncCallback(
 geometry_msgs::msg::TransformStamped FusionNode::lookupTransformToOutputFrame(
   const std::string & source_frame)
 {
-  if (params_.transform.type == TransformType::STATIC) {
+  if (params_.transform_cfg.type == TransformType::STATIC) {
     const auto it = static_tf_cache_.find(source_frame);
     if (it != static_tf_cache_.end()) {
       return it->second;
