@@ -25,20 +25,6 @@ public:
   explicit FusionNode(const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
 
 private:
-
-  FusionNodeParameters handleParams();
-  geometry_msgs::msg::TransformStamped lookupTransformToOutputFrame(
-    const std::string & source_frame);
-  sensor_msgs::msg::PointCloud2::ConstSharedPtr transformToOutputFrame(
-    const sensor_msgs::msg::PointCloud2::ConstSharedPtr & cloud);
-  void syncCallback(
-    const sensor_msgs::msg::PointCloud2::ConstSharedPtr & a,
-    const sensor_msgs::msg::PointCloud2::ConstSharedPtr & b
-  );
-  sensor_msgs::msg::PointCloud2::UniquePtr fuse(
-    const sensor_msgs::msg::PointCloud2::ConstSharedPtr & a,
-    const sensor_msgs::msg::PointCloud2::ConstSharedPtr & b);
-
   message_filters::Subscriber<sensor_msgs::msg::PointCloud2> cloudA_;
   message_filters::Subscriber<sensor_msgs::msg::PointCloud2> cloudB_;
   std::shared_ptr<message_filters::Synchronizer<
@@ -49,8 +35,28 @@ private:
   FusionNodeParameters params_{};
   tf2_ros::Buffer tf_buffer_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
-
   std::unordered_map<std::string, geometry_msgs::msg::TransformStamped> static_tf_cache_;
+  bool is_transmitting_{false};
+
+  FusionNodeParameters handleParams();
+
+  geometry_msgs::msg::TransformStamped lookupTransformToOutputFrame(
+    const std::string & source_frame
+  );
+
+  sensor_msgs::msg::PointCloud2::ConstSharedPtr transformToOutputFrame(
+    const sensor_msgs::msg::PointCloud2::ConstSharedPtr & cloud
+  );
+
+  void syncCallback(
+    const sensor_msgs::msg::PointCloud2::ConstSharedPtr & a,
+    const sensor_msgs::msg::PointCloud2::ConstSharedPtr & b
+  );
+
+  sensor_msgs::msg::PointCloud2::UniquePtr fuse(
+    const sensor_msgs::msg::PointCloud2::ConstSharedPtr & a,
+    const sensor_msgs::msg::PointCloud2::ConstSharedPtr & b
+  );
 };
 
 }  // namespace fusion

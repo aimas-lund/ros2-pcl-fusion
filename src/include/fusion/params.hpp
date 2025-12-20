@@ -15,27 +15,29 @@ enum class TransformType
 
 struct FusionNodeParameters
 {
-struct Input
-{
-    std::vector<std::string> topics;
-    std::vector<std::string> frame_ids;
-    struct Sync
+    struct Input
     {
-    uint32_t queue_size;
-    std::tuple<int32_t, uint32_t> slop{0, 0};
-    } sync;
-} input;
+        struct Sync
+        {
+            uint32_t queue_size{0U};
+            std::tuple<int32_t, uint32_t> slop{0, 0};
+        };
 
-struct Output
-{
-    std::string topic;
-    std::string frame_id;
-} output;
+        std::vector<std::string> topics;
+        std::vector<std::string> frame_ids;
+        Sync sync{};
+    } input;
 
-struct Transform
-{
-    TransformType type;  // "static" or "dynamic"
-} transform;
+    struct Output
+    {
+        std::string topic;
+        std::string frame_id;
+    } output;
+
+    struct Transform
+    {
+        TransformType type{TransformType::STATIC};  // "static" or "dynamic"
+    } transform;
 };
 
 }  // namespace fusion

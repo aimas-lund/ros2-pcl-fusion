@@ -172,10 +172,15 @@ void FusionNode::syncCallback(
 {
   auto fused_cloud = fuse(a, b);
   if (!fused_cloud) {
-    RCLCPP_WARN(this->get_logger(), "Fusion failed. Skipping publish");
+    is_transmitting_ = false;
+    RCLCPP_WARN(this->get_logger(), "Fusion failed. Skipped publishing fused cloud message.");
     return;
   }
   pub_->publish(std::move(fused_cloud));
+  if (!is_transmitting_) {
+    RCLCPP_INFO(this->get_logger(), "Started transmitting fused point clouds...");
+    is_transmitting_ = true;
+  }
 }
 
 /** 
@@ -290,19 +295,19 @@ sensor_msgs::msg::PointCloud2::UniquePtr FusionNode::fuse(
   const bool areFramesMismatched = transformed_a->header.frame_id != params_.output.frame_id ||
       transformed_b->header.frame_id != params_.output.frame_id;
   if (areFramesMismatched) {
-    RCLCPP_WARN(this->get_logger(), "Transformed clouds are not in output frame; skipping fusion");
+    RCLCPP_WARN(this->get_logger(), "Transformed clouds are not in output frame.");
     return {};
   }
 
   if (!hasMatchingPointCloud2Layout(*transformed_a, *transformed_b)) {
-    RCLCPP_WARN(this->get_logger(), "PointCloud2 layouts differ; cannot fast-concatenate");
+    RCLCPP_WARN(this->get_logger(), "PointCloud2 layouts differ. Cannot fast-concatenate");
     return {};
   }
 
   const size_t step = transformed_a->point_step;
   const bool isPointStepInvalid = step == 0U;
   if (isPointStepInvalid) {
-    RCLCPP_WARN(this->get_logger(), "Invalid point_step=0; cannot fuse");
+    RCLCPP_WARN(this->get_logger(), "Cannot fuse PointCloud2 with point_step of zero");
     return {};
   }
 
@@ -310,7 +315,7 @@ sensor_msgs::msg::PointCloud2::UniquePtr FusionNode::fuse(
   const size_t bytes_b = transformed_b->data.size();
   const bool isDataSizeInvalid = (bytes_a % step != 0U) || (bytes_b % step != 0U);
   if (isDataSizeInvalid) {
-    RCLCPP_WARN(this->get_logger(), "PointCloud2 data not divisible by point_step; cannot fuse");
+    RCLCPP_WARN(this->get_logger(), "Cannot fuse PointCloud2 with data size not divisible by point_step");
     return {};
   }
 
@@ -320,30 +325,30 @@ sensor_msgs::msg::PointCloud2::UniquePtr FusionNode::fuse(
       points_b > static_cast<size_t>(std::numeric_limits<uint32_t>::max()) ||
       (points_a + points_b) > static_cast<size_t>(std::numeric_limits<uint32_t>::max());
   if (isPointCountOverflowing) {
-    RCLCPP_WARN(this->get_logger(), "Fused point count exceeds uint32_t; cannot fuse");
+    RCLCPP_WARN(this->get_logger(), "Cannot fuse as total point count exceeds uint32_t max");
     return {};
   }
 
   if (bytes_a > (std::numeric_limits<size_t>::max() - bytes_b)) {
-    RCLCPP_WARN(this->get_logger(), "Fused data size overflows size_t; cannot fuse");
+    RCLCPP_WARN(this->get_logger(), "Cannot fuse as fused data size overflows size_t");
     return {};
   }
 
   const size_t fused_points = points_a + points_b;
   if (fused_points != 0U && step > (std::numeric_limits<size_t>::max() / fused_points)) {
-    RCLCPP_WARN(this->get_logger(), "Fused row_step overflows size_t; cannot fuse");
+    RCLCPP_WARN(this->get_logger(), "Cannot fuse as fused row_step overflows size_t");
     return {};
   }
 
   const size_t fused_row_step = fused_points * step;
   if (fused_row_step > static_cast<size_t>(std::numeric_limits<uint32_t>::max())) {
-    RCLCPP_WARN(this->get_logger(), "Fused row_step exceeds uint32_t; cannot fuse");
+    RCLCPP_WARN(this->get_logger(), "Cannot fuse as fused row_step exceeds uint32_t max");
     return {};
   }
 
   const size_t fused_bytes = bytes_a + bytes_b;
   if (fused_bytes != fused_row_step) {
-    RCLCPP_WARN(this->get_logger(), "Inconsistent fused sizes; cannot fuse");
+    RCLCPP_WARN(this->get_logger(), "Cannot fuse as fused data size does not match fused row_step");
     return {};
   }
 
