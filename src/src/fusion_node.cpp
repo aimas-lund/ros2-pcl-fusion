@@ -82,7 +82,7 @@ FusionNodeParameters FusionNode::handleParams()
       rclcpp::ParameterValue(std::string{"/fusion/out"}));
     declare_if_needed(
       "output.frame_id",
-      rclcpp::ParameterValue(std::string{"lidar"}));
+      rclcpp::ParameterValue(std::string{"fused_frame"}));
     declare_if_needed(
       "transform.type",
       rclcpp::ParameterValue(std::string{"static"}));
