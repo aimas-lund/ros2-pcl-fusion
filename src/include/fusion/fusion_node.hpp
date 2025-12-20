@@ -7,7 +7,10 @@
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 
+#include <cstdint>
 #include <memory>
+#include <string>
+#include <vector>
 
 namespace fusion
 {
@@ -18,6 +21,15 @@ public:
   explicit FusionNode(const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
 
 private:
+  struct FusionNodeParameters
+  {
+    uint32_t queue_size;
+    double slop;
+    std::vector<std::string> input_topics;
+    std::string output_topic;
+  };
+
+  FusionNodeParameters handleParams();
   void sync_callback(
     const sensor_msgs::msg::PointCloud2::ConstSharedPtr & a,
     const sensor_msgs::msg::PointCloud2::ConstSharedPtr & b);

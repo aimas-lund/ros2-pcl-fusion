@@ -1,7 +1,10 @@
 fusion_node:
   ros__parameters:
+    message_sync: 
+      queue_size: 10
+      slop: 0.1
     input_topics: [
-      "/lidar1/points",
-      "/lidar2/points"
+      "/blueview/points2",
+      "/blueview/points2"
     ]
     output_topic: "/fused_pointcloud"
