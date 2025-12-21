@@ -7,7 +7,8 @@
 - [ ] Implement for ros2 humble
 - [ ] Create launch file
 - [x] Use params.yaml
-- [ ] Point-wise concatenation 
+- [ ] Point-wise concatenation
+- [ ] Option to only perform cloud validation on first synced message
 
 Note: some of the above may exist in-repo but still need validation/wiring.
 
