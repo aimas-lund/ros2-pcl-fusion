@@ -10,7 +10,7 @@
 - [ ] Point-wise concatenation
 - [ ] Option to only perform cloud validation on first synced message
 
-Note: some of the above may exist in-repo but still need validation/wiring.
+Note: some of the above may exist in-repo but still need additional work.
 
 ## Overview
 
