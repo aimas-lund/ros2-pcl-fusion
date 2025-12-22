@@ -80,7 +80,7 @@ The node declares parameters on startup and supports overrides.
 - `input.sync.queue_size` (int, default `10`): ApproximateTime queue size
 - `input.sync.slop_ns` (int, default `100000000`): ApproximateTime max interval duration, in nanoseconds (e.g. `100000000` = 0.1s)
 - `output.topic` (string, default `/fused_pointcloud`): output topic
-- `output.frame_id` (string, default `os_lidar`): output frame
+- `output.frame_id` (string, default `fused_frame`): output frame
 - `transform.type` (string, `static|dynamic`, default `static`):
 	- `static`: caches the TF lookup per source frame
 	- `dynamic`: looks up TF each callback
