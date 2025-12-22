@@ -1,6 +1,6 @@
 # ros2-pcl-fusion
 
-## TODO (missing features)
+## TODO
 
 - [ ] Support fusion of more than two point cloud topics
 - [ ] Expose correct ports in docker
