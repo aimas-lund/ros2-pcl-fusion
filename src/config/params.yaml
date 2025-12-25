@@ -1,19 +1,19 @@
-fusion_node:
+fusion:
   ros__parameters:
     input:
       topics: [
-        "/your/cloud1", # <-- insert input topic 
-        "/your/cloud2"  # <-- insert input topic 
-      ]
+          "/your/cloud1", # <-- insert input topic
+          "/your/cloud2", # <-- insert input topic
+        ]
       frame_ids: [
-        "your_frame1",  # <-- insert frame ID for cloud1
-        "your_frame2"   # <-- insert frame ID for cloud2
-      ]
-      sync: 
-        queue_size: 10      # queue size for message filtering
-        slop_ns: 100000000  # for approximate time sync
+          "your_frame1", # <-- insert frame ID for cloud1
+          "your_frame2", # <-- insert frame ID for cloud2
+        ]
+      sync:
+        queue_size: 10 # queue size for message filtering
+        slop_ns: 100000000 # for approximate time sync
     output:
-      topic: "/fused_pointcloud"  # <-- insert desired output topic
-      frame_id: "fused_frame"     # <-- insert desired output frame ID
+      topic: "/fused_pointcloud" # <-- insert desired output topic
+      frame_id: "fused_frame" # <-- insert desired output frame ID
     transform:
-      type: "static"  # "static" or "dynamic" transform lookup
+      type: "static" # "static" or "dynamic" transform lookup
