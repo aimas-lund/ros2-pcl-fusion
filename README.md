@@ -78,7 +78,7 @@ The node declares parameters on startup and supports overrides.
 - `input.topics` (string[2]): two `PointCloud2` input topics
 - `input.frame_ids` (string[2]): expected frames for the inputs (currently used for logging only; TF uses `header.frame_id`)
 - `input.sync.queue_size` (int, default `10`): ApproximateTime queue size
-- `input.sync.slop_ns` (int, default `100000000`): ApproximateTime max interval duration, in nanoseconds (e.g. `100000000` = 0.1s)
+- `input.sync.slop_ms` (int, default `100`): ApproximateTime max interval duration, in milliseconds (e.g. `100` = 0.1s)
 - `output.topic` (string, default `/fused_pointcloud`): output topic
 - `output.frame_id` (string, default `fused_frame`): output frame
 - `transform.type` (string, `static|dynamic`, default `static`):

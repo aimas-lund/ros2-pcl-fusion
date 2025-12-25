@@ -13,7 +13,6 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <tf2/exceptions.h>
 
 
 namespace fusion
@@ -26,7 +25,9 @@ FusionNode::FusionNode(const rclcpp::NodeOptions & options)
 {
   params_ = handleParams();
 
-  auto qos = rclcpp::SensorDataQoS();
+  auto qos = rclcpp::SensorDataQoS().keep_last(
+    static_cast<size_t>(std::max(params_.input.sync.queue_size, 10U))
+  );
 
   cloudA_.subscribe(this, params_.input.topics[0], qos.get_rmw_qos_profile());
   cloudB_.subscribe(this, params_.input.topics[1], qos.get_rmw_qos_profile());
@@ -60,6 +61,7 @@ FusionNode::FusionNode(const rclcpp::NodeOptions & options)
 FusionNodeParameters FusionNode::handleParams()
 {
   const uint32_t default_queue_size = 10U;
+  constexpr int64_t default_slop_ms = 100LL;         // 0.1s
   FusionNodeParameters params{};
 
   try {
@@ -74,8 +76,8 @@ FusionNodeParameters FusionNode::handleParams()
       "input.sync.queue_size",
       rclcpp::ParameterValue(static_cast<int>(default_queue_size)));
     declare_if_needed(
-      "input.sync.slop_ns",
-      rclcpp::ParameterValue(static_cast<int64_t>(100000000LL)));
+      "input.sync.slop_ms",
+      rclcpp::ParameterValue(static_cast<int64_t>(default_slop_ms)));
     declare_if_needed(
       "input.topics",
       rclcpp::ParameterValue(std::vector<std::string>{"/cloud1", "/cloud2"}));
@@ -93,12 +95,17 @@ FusionNodeParameters FusionNode::handleParams()
       rclcpp::ParameterValue(std::string{"static"}));
 
     const auto queue_size_param = this->get_parameter("input.sync.queue_size").as_int();
-    const auto slop_ns = this->get_parameter("input.sync.slop_ns").as_int();
-    {
-      const auto sec = static_cast<int32_t>(slop_ns / 1000000000LL);
-      const auto nsec = static_cast<uint32_t>(slop_ns % 1000000000LL);
-      params.input.sync.slop = std::make_tuple(sec, nsec);
+    const auto slop_ms_param = static_cast<int64_t>(this->get_parameter("input.sync.slop_ms").as_int());
+
+    int64_t slop_ms_used = slop_ms_param;
+    if (slop_ms_used < 0LL) {
+      RCLCPP_WARN(this->get_logger(), "Configured input.sync.slop_ms < 0; clamping to 0");
+      slop_ms_used = 0LL;
     }
+    const int64_t slop_ns = slop_ms_used * 1000000LL;
+    const auto sec = static_cast<int32_t>(slop_ns / 1000000000LL);
+    const auto nsec = static_cast<uint32_t>(slop_ns % 1000000000LL);
+    params.input.sync.slop = std::make_tuple(sec, nsec);
     params.input.topics = this->get_parameter("input.topics").as_string_array();
     params.input.frame_ids = this->get_parameter("input.frame_ids").as_string_array();
     params.output.topic = this->get_parameter("output.topic").as_string();
@@ -142,22 +149,7 @@ FusionNodeParameters FusionNode::handleParams()
         params.input.sync.queue_size);
     }
 
-    RCLCPP_INFO(this->get_logger(), "FusionNode parameters:");
-    RCLCPP_INFO(
-      this->get_logger(),
-      "  input.topics: [%s, %s]",
-      params.input.topics[0].c_str(),
-      params.input.topics[1].c_str());
-    RCLCPP_INFO(
-      this->get_logger(),
-      "  input.frame_ids: [%s, %s]",
-      params.input.frame_ids[0].c_str(),
-      params.input.frame_ids[1].c_str());
-    RCLCPP_INFO(this->get_logger(), "  input.sync.queue_size: %u", params.input.sync.queue_size);
-    RCLCPP_INFO(this->get_logger(), "  input.sync.slop_ns: %ld", static_cast<long>(slop_ns));
-    RCLCPP_INFO(this->get_logger(), "  output.topic: %s", params.output.topic.c_str());
-    RCLCPP_INFO(this->get_logger(), "  output.frame_id: %s", params.output.frame_id.c_str());
-    RCLCPP_INFO(this->get_logger(), "  transform.type: %u", static_cast<uint32_t>(params.transform_cfg.type));
+    printNodeParams(this->get_logger(), params);
     
     return params;
   } catch (const rclcpp::ParameterTypeException & ex) {
