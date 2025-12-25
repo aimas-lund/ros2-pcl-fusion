@@ -19,6 +19,11 @@
 namespace fusion
 {
 
+typedef message_filters::sync_policies::ApproximateTime<
+          sensor_msgs::msg::PointCloud2,
+          sensor_msgs::msg::PointCloud2
+        > FusionSyncPolicy;
+
 class FusionNode : public rclcpp::Node
 {
 public:
@@ -27,10 +32,7 @@ public:
 private:
   message_filters::Subscriber<sensor_msgs::msg::PointCloud2> cloudA_;
   message_filters::Subscriber<sensor_msgs::msg::PointCloud2> cloudB_;
-  std::shared_ptr<message_filters::Synchronizer<
-    message_filters::sync_policies::ApproximateTime<
-      sensor_msgs::msg::PointCloud2,
-      sensor_msgs::msg::PointCloud2>>> sync_;
+  std::shared_ptr<message_filters::Synchronizer<FusionSyncPolicy>> sync_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_;
   FusionNodeParameters params_{};
   tf2_ros::Buffer tf_buffer_;
