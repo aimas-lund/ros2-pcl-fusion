@@ -3,8 +3,13 @@
 #include "fusion/utils.hpp"
 
 #include <cstring>
+#include <Eigen/Geometry>
 #include <functional>
 #include <limits>
+#include <pcl/common/transforms.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl_conversions/pcl_conversions.h>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -170,6 +175,7 @@ void FusionNode::syncCallback(
   const sensor_msgs::msg::PointCloud2::ConstSharedPtr &a,
   const sensor_msgs::msg::PointCloud2::ConstSharedPtr &b) 
 {
+  auto t_start = this->now();
   auto fused_cloud = fuse(a, b);
   if (!fused_cloud) {
     is_transmitting_ = false;
@@ -181,6 +187,11 @@ void FusionNode::syncCallback(
     RCLCPP_INFO(this->get_logger(), "Started transmitting fused point clouds...");
     is_transmitting_ = true;
   }
+  auto t_end = this->now();
+  RCLCPP_INFO(
+    this->get_logger(),
+    "Fused and published point cloud in %.3f ms",
+    (t_end - t_start).seconds() * 1000.0); 
 }
 
 /** 
@@ -231,12 +242,25 @@ sensor_msgs::msg::PointCloud2::ConstSharedPtr FusionNode::transformToOutputFrame
   try {
     const auto transform = lookupTransformToOutputFrame(cloud->header.frame_id);
 
+    pcl::PointCloud<pcl::PointXYZ> pcl_in;
+    pcl::fromROSMsg(*cloud, pcl_in);
+
+    const auto & t = transform.transform.translation;
+    const auto & q = transform.transform.rotation;
+
+    Eigen::Translation3f translation(static_cast<float>(t.x), static_cast<float>(t.y), static_cast<float>(t.z));
+    Eigen::Quaternionf rotation(static_cast<float>(q.w), static_cast<float>(q.x), static_cast<float>(q.y), static_cast<float>(q.z));
+    Eigen::Affine3f affine = translation * rotation;
+
+    pcl::PointCloud<pcl::PointXYZ> pcl_out;
+    pcl::transformPointCloud(pcl_in, pcl_out, affine);
+
     auto transformed = std::make_shared<sensor_msgs::msg::PointCloud2>();
-    tf2::doTransform(*cloud, *transformed, transform);
+    pcl::toROSMsg(pcl_out, *transformed);
     transformed->header.frame_id = params_.output.frame_id;
     transformed->header.stamp = transform.header.stamp;
     return transformed;
-  } catch (const tf2::TransformException & ex) {
+  } catch (const std::exception & ex) {
     RCLCPP_WARN(this->get_logger(),
       "Failed to transform cloud from '%s' to '%s': %s",
       cloud->header.frame_id.c_str(),
@@ -292,9 +316,9 @@ sensor_msgs::msg::PointCloud2::UniquePtr FusionNode::fuse(
     return {};
   }
 
-  const bool areFramesMismatched = transformed_a->header.frame_id != params_.output.frame_id ||
+  const bool areFramesNotMatching = transformed_a->header.frame_id != params_.output.frame_id ||
       transformed_b->header.frame_id != params_.output.frame_id;
-  if (areFramesMismatched) {
+  if (areFramesNotMatching) {
     RCLCPP_WARN(this->get_logger(), "Transformed clouds are not in output frame.");
     return {};
   }
