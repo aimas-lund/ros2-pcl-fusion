@@ -4,7 +4,7 @@
 
 - [ ] Expose correct ports in docker
 - [ ] Implement for ros2 humble
-- [ ] Create launch file
+- [x] Create launch file
 - [x] Use params.yaml
 - [ ] Option to only perform cloud validation on first synced message
 - [ ] Benchmark scripts
@@ -33,10 +33,10 @@ Fusion in this package is performed in the following steps:
 ## The node does NOT do (but might in the future)
 
 - No point cloud registration/alignment (no ICP / NDT / scan matching).
-	- The node assumes the TF tree already provides the correct relative transforms.
+  - The node assumes the TF tree already provides the correct relative transforms.
 - No filtering, downsampling, de-duplication, outlier removal, etc.
 - No field conversion or “best effort” merging when point layouts differ.
-	- If the two `PointCloud2` layouts differ, fusion is skipped.
+  - If the two `PointCloud2` layouts differ, fusion is skipped.
 - No support for fusing more than two point clouds.
 
 ## Point cloud matching requirements
@@ -82,8 +82,8 @@ The node declares parameters on startup and supports overrides.
 - `output.topic` (string, default `/fused_pointcloud`): output topic
 - `output.frame_id` (string, default `fused_frame`): output frame
 - `transform.type` (string, `static|dynamic`, default `static`):
-	- `static`: caches the TF lookup per source frame
-	- `dynamic`: looks up TF each callback
+  - `static`: caches the TF lookup per source frame
+  - `dynamic`: looks up TF each callback
 
 An example parameter file lives at: `src/config/params.yaml`.
 
@@ -92,7 +92,7 @@ An example parameter file lives at: `src/config/params.yaml`.
 From the repo root:
 
 ```bash
-colcon build 
+colcon build
 source install/setup.bash
 ```
 
@@ -122,7 +122,7 @@ ros2 launch fusion fusion.launch.py
 ```
 
 ## Docker
+
 **This feature is still not functioning**
 
 This repo builds a container that runs `ros2 run fusion fusion_node_exe` by default.
-
