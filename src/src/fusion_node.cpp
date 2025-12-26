@@ -20,10 +20,8 @@
 #include <condition_variable>
 #include <queue>
 
-
 namespace fusion
 {
-
 
 FusionNode::FusionNode(const rclcpp::NodeOptions & options)
 : rclcpp::Node("fusion_node", options),
@@ -409,7 +407,6 @@ sensor_msgs::msg::PointCloud2::UniquePtr FusionNode::fuse(
   if (bytes_b != 0U) {
     std::memcpy(fused->data.data() + bytes_a, transformed_b->data.data(), bytes_b);
   }
-
 
   return fused;
 }
