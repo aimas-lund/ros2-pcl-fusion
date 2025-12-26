@@ -9,6 +9,7 @@
 - [ ] Option to only perform cloud validation on first synced message
 - [ ] Benchmark scripts
 - [ ] Define performance goals
+- [ ] CI/CD pipeline
 
 Note: some of the above may exist in-repo but still need additional work.
 
@@ -77,8 +78,8 @@ The node declares parameters on startup and supports overrides.
 
 - `input.topics` (string[2]): two `PointCloud2` input topics
 - `input.frame_ids` (string[2]): expected frames for the inputs (currently used for logging only; TF uses `header.frame_id`)
-- `input.sync.queue_size` (int, default `10`): ApproximateTime queue size
-- `input.sync.slop_ms` (int, default `100`): ApproximateTime max interval duration, in milliseconds (e.g. `100` = 0.1s)
+- `input.sync.queue_size` (int, default `10`): ApproximateEpsilonTime queue size
+- `input.sync.epsilon_ms` (int, default `100`): ApproximateEpsilonTime max interval duration, in milliseconds (e.g. `100` = 0.1s)
 - `output.topic` (string, default `/fused_pointcloud`): output topic
 - `output.frame_id` (string, default `fused_frame`): output frame
 - `transform.type` (string, `static|dynamic`, default `static`):
@@ -125,4 +126,4 @@ ros2 launch fusion fusion.launch.py
 
 **This feature is still not functioning**
 
-This repo builds a container that runs `ros2 run fusion fusion_node_exe` by default.
+This repo builds a container that runs `ros2 launch fusion fusion.launch.py` by default.
