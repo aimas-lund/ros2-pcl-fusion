@@ -28,8 +28,21 @@ class FusionNode : public rclcpp::Node
 {
 public:
   explicit FusionNode(const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
+  ~FusionNode();
 
 private:
+  struct SyncedData {
+    sensor_msgs::msg::PointCloud2::ConstSharedPtr a;
+    sensor_msgs::msg::PointCloud2::ConstSharedPtr b;
+  };
+  std::queue<SyncedData> sync_queue_;
+
+  std::mutex queue_mutex_;
+  std::condition_variable queue_cv_;
+
+  std::thread worker_thread_;
+  std::mutex transmit_mutex_;
+
   message_filters::Subscriber<sensor_msgs::msg::PointCloud2> cloudA_;
   message_filters::Subscriber<sensor_msgs::msg::PointCloud2> cloudB_;
   std::shared_ptr<message_filters::Synchronizer<FusionSyncPolicy>> sync_;
@@ -37,8 +50,13 @@ private:
   FusionNodeParameters params_{};
   tf2_ros::Buffer tf_buffer_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+  bool stop_worker_ = false;
   std::unordered_map<std::string, geometry_msgs::msg::TransformStamped> static_tf_cache_;
   bool is_transmitting_{false};
+
+  void workerLoop();
+  void processSyncData(const sensor_msgs::msg::PointCloud2::ConstSharedPtr &a,
+                       const sensor_msgs::msg::PointCloud2::ConstSharedPtr &b);
 
   FusionNodeParameters handleParams();
 

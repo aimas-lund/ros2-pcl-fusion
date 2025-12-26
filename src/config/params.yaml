@@ -12,7 +12,7 @@ fusion:
         ]
       sync:
         queue_size: 20 # queue size for message filtering
-        slop_ms: 100 # for approximate time sync
+        epsilon_ms: 100 # espilon window for approximate input message sync
     output:
       topic: "/fused_pointcloud" # <-- insert desired output topic
       frame_id: "fused_frame" # <-- insert desired output frame ID
