@@ -1,16 +1,9 @@
 #include "fusion/fusion_node.hpp"
-
 #include "fusion/utils.hpp"
 
-
 #include <cstring>
-#include <Eigen/Geometry>
 #include <functional>
 #include <limits>
-#include <pcl/common/transforms.h>
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
-#include <pcl_conversions/pcl_conversions.h>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -76,11 +69,11 @@ void FusionNode::workerLoop() {
       data = std::move(sync_queue_.front());
       sync_queue_.pop();
     }
-    processSyncData(data.a, data.b);
+    processSyncedData(data.a, data.b);
   }
 }
 
-void FusionNode::processSyncData(const sensor_msgs::msg::PointCloud2::ConstSharedPtr &a,
+void FusionNode::processSyncedData(const sensor_msgs::msg::PointCloud2::ConstSharedPtr &a,
                                  const sensor_msgs::msg::PointCloud2::ConstSharedPtr &b) {
   auto fused_cloud = this->fuse(a, b);
   if (!fused_cloud) {

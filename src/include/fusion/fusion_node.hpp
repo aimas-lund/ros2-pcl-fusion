@@ -55,7 +55,7 @@ private:
   bool is_transmitting_{false};
 
   void workerLoop();
-  void processSyncData(const sensor_msgs::msg::PointCloud2::ConstSharedPtr &a,
+  void processSyncedData(const sensor_msgs::msg::PointCloud2::ConstSharedPtr &a,
                        const sensor_msgs::msg::PointCloud2::ConstSharedPtr &b);
 
   FusionNodeParameters handleParams();

@@ -12,8 +12,6 @@ find_package(tf2_ros REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(message_filters REQUIRED)
 find_package(tf2_sensor_msgs REQUIRED)
-find_package(PCL REQUIRED COMPONENTS common)
-find_package(pcl_conversions REQUIRED)
 
 add_library(fusion_node SHARED
   src/fusion_node.cpp
@@ -30,12 +28,7 @@ ament_target_dependencies(fusion_node
   sensor_msgs
   message_filters
   tf2_sensor_msgs
-  pcl_conversions
 )
-
-target_include_directories(fusion_node PRIVATE ${PCL_INCLUDE_DIRS})
-target_compile_definitions(fusion_node PRIVATE ${PCL_DEFINITIONS})
-target_link_libraries(fusion_node ${PCL_LIBRARIES})
 
 add_executable(fusion_node_exe src/main.cpp)
 target_link_libraries(fusion_node_exe fusion_node)
