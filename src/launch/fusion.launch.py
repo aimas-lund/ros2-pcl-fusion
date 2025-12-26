@@ -18,5 +18,6 @@ def generate_launch_description() -> LaunchDescription:
             name="fusion",
             output="screen",
             parameters=[config_file],
+            # prefix=['valgrind --tool=callgrind']
         ),
     ])

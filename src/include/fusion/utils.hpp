@@ -2,6 +2,7 @@
 
 #include "fusion/params.hpp"
 
+#include <rclcpp/rclcpp.hpp>
 #include <algorithm>
 #include <cctype>
 #include <initializer_list>
@@ -52,6 +53,26 @@ inline TransformType parseTransformType(const std::string &value)
     {
         {"static", TransformType::STATIC}, {"dynamic", TransformType::DYNAMIC}
     }, "transform.type");
+}
+
+inline void printNodeParams(const rclcpp::Logger &logger, const FusionNodeParameters &params)
+{
+  RCLCPP_INFO(logger, "FusionNode parameters:");
+  RCLCPP_INFO(
+    logger,
+    "  input.topics: [%s, %s]",
+    params.input.topics[0].c_str(),
+    params.input.topics[1].c_str());
+  RCLCPP_INFO(
+    logger,
+    "  input.frame_ids: [%s, %s]",
+    params.input.frame_ids[0].c_str(),
+    params.input.frame_ids[1].c_str());
+  RCLCPP_INFO(logger, "  input.sync.queue_size: %u", params.input.sync.queue_size);
+  RCLCPP_INFO(logger, "  input.sync.epsilon_ms: %u", params.input.sync.epsilon_ms);
+  RCLCPP_INFO(logger, "  output.topic: %s", params.output.topic.c_str());
+  RCLCPP_INFO(logger, "  output.frame_id: %s", params.output.frame_id.c_str());
+  RCLCPP_INFO(logger, "  transform.type: %u", static_cast<uint32_t>(params.transform_cfg.type));
 }
 
 }  // namespace fusion

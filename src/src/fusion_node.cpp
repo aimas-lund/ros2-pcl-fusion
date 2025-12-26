@@ -1,5 +1,4 @@
 #include "fusion/fusion_node.hpp"
-
 #include "fusion/utils.hpp"
 
 #include <cstring>
@@ -8,8 +7,11 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <tf2/exceptions.h>
-
+#include <chrono>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <queue>
 
 namespace fusion
 {
@@ -17,11 +19,14 @@ namespace fusion
 FusionNode::FusionNode(const rclcpp::NodeOptions & options)
 : rclcpp::Node("fusion_node", options),
   tf_buffer_(this->get_clock()),
-  tf_listener_(std::make_shared<tf2_ros::TransformListener>(tf_buffer_))
+  tf_listener_(std::make_shared<tf2_ros::TransformListener>(tf_buffer_)),
+  stop_worker_(false)
 {
   params_ = handleParams();
 
-  auto qos = rclcpp::SensorDataQoS();
+  auto qos = rclcpp::SensorDataQoS().keep_last(
+    static_cast<size_t>(std::max(params_.input.sync.queue_size, 10U))
+  );
 
   cloudA_.subscribe(this, params_.input.topics[0], qos.get_rmw_qos_profile());
   cloudB_.subscribe(this, params_.input.topics[1], qos.get_rmw_qos_profile());
@@ -30,22 +35,61 @@ FusionNode::FusionNode(const rclcpp::NodeOptions & options)
     params_.output.topic, qos);
 
   sync_ = std::make_shared<
-      message_filters::Synchronizer<
-        message_filters::sync_policies::ApproximateTime<
-          sensor_msgs::msg::PointCloud2,
-          sensor_msgs::msg::PointCloud2
-        >
-      >
-    >( message_filters::sync_policies::ApproximateTime<
-         sensor_msgs::msg::PointCloud2,
-          sensor_msgs::msg::PointCloud2>(params_.input.sync.queue_size),
-      cloudA_, cloudB_ );
+    message_filters::Synchronizer<FusionSyncPolicy>>(
+    FusionSyncPolicy(params_.input.sync.queue_size, rclcpp::Duration::from_nanoseconds(params_.input.sync.epsilon_ms * 1000000ULL)),
+    cloudA_, cloudB_ );
 
   sync_->registerCallback(
     std::bind(&FusionNode::syncCallback, this, std::placeholders::_1, std::placeholders::_2)
   );
-  const auto [slop_sec, slop_nsec] = params_.input.sync.slop;
-  sync_->setMaxIntervalDuration(rclcpp::Duration(slop_sec, slop_nsec));
+
+  worker_thread_ = std::thread([this]() { this->workerLoop(); });
+}
+
+FusionNode::~FusionNode() {
+  {
+    std::lock_guard<std::mutex> lock(queue_mutex_);
+    stop_worker_ = true;
+  }
+  queue_cv_.notify_one();
+  if (worker_thread_.joinable()) {
+    worker_thread_.join();
+  }
+}
+
+void FusionNode::workerLoop() {
+  while (true) {
+    SyncedData data;
+    {
+      std::unique_lock<std::mutex> lock(queue_mutex_);
+      queue_cv_.wait(lock, [this]() { return !sync_queue_.empty() || stop_worker_; });
+      if (stop_worker_ && sync_queue_.empty()) {
+        break;
+      }
+      data = std::move(sync_queue_.front());
+      sync_queue_.pop();
+    }
+    processSyncedData(data.a, data.b);
+  }
+}
+
+void FusionNode::processSyncedData(const sensor_msgs::msg::PointCloud2::ConstSharedPtr &a,
+                                 const sensor_msgs::msg::PointCloud2::ConstSharedPtr &b) {
+  auto fused_cloud = this->fuse(a, b);
+  if (!fused_cloud) {
+    std::lock_guard<std::mutex> lock(transmit_mutex_);
+    is_transmitting_ = false;
+    RCLCPP_WARN(this->get_logger(), "Fusion failed. Skipped publishing fused cloud message.");
+    return;
+  }
+  pub_->publish(std::move(fused_cloud));
+  {
+    std::lock_guard<std::mutex> lock(transmit_mutex_);
+    if (!is_transmitting_) {
+      RCLCPP_INFO(this->get_logger(), "Started transmitting fused point clouds...");
+      is_transmitting_ = true;
+    }
+  }
 }
 
 /**
@@ -55,6 +99,7 @@ FusionNode::FusionNode(const rclcpp::NodeOptions & options)
 FusionNodeParameters FusionNode::handleParams()
 {
   const uint32_t default_queue_size = 10U;
+  const int64_t default_slop_ms = 100LL;
   FusionNodeParameters params{};
 
   try {
@@ -67,10 +112,10 @@ FusionNodeParameters FusionNode::handleParams()
 
     declare_if_needed(
       "input.sync.queue_size",
-      rclcpp::ParameterValue(static_cast<int>(default_queue_size)));
+      rclcpp::ParameterValue(static_cast<int64_t>(default_queue_size)));
     declare_if_needed(
-      "input.sync.slop_ns",
-      rclcpp::ParameterValue(static_cast<int64_t>(100000000LL)));
+      "input.sync.slop_ms",
+      rclcpp::ParameterValue(static_cast<int64_t>(default_slop_ms)));
     declare_if_needed(
       "input.topics",
       rclcpp::ParameterValue(std::vector<std::string>{"/cloud1", "/cloud2"}));
@@ -88,12 +133,14 @@ FusionNodeParameters FusionNode::handleParams()
       rclcpp::ParameterValue(std::string{"static"}));
 
     const auto queue_size_param = this->get_parameter("input.sync.queue_size").as_int();
-    const auto slop_ns = this->get_parameter("input.sync.slop_ns").as_int();
-    {
-      const auto sec = static_cast<int32_t>(slop_ns / 1000000000LL);
-      const auto nsec = static_cast<uint32_t>(slop_ns % 1000000000LL);
-      params.input.sync.slop = std::make_tuple(sec, nsec);
+    const auto epsilon_ms_param = this->get_parameter("input.sync.epsilon_ms").as_int();
+
+    auto epsilon_ms_used = epsilon_ms_param;
+    if (epsilon_ms_used < 0LL) {
+      RCLCPP_WARN(this->get_logger(), "Configured input.sync.epsilon_ms < 0; clamping to 0");
+      epsilon_ms_used = 0LL;
     }
+    params.input.sync.epsilon_ms = static_cast<uint32_t>(epsilon_ms_used);
     params.input.topics = this->get_parameter("input.topics").as_string_array();
     params.input.frame_ids = this->get_parameter("input.frame_ids").as_string_array();
     params.output.topic = this->get_parameter("output.topic").as_string();
@@ -137,22 +184,7 @@ FusionNodeParameters FusionNode::handleParams()
         params.input.sync.queue_size);
     }
 
-    RCLCPP_INFO(this->get_logger(), "FusionNode parameters:");
-    RCLCPP_INFO(
-      this->get_logger(),
-      "  input.topics: [%s, %s]",
-      params.input.topics[0].c_str(),
-      params.input.topics[1].c_str());
-    RCLCPP_INFO(
-      this->get_logger(),
-      "  input.frame_ids: [%s, %s]",
-      params.input.frame_ids[0].c_str(),
-      params.input.frame_ids[1].c_str());
-    RCLCPP_INFO(this->get_logger(), "  input.sync.queue_size: %u", params.input.sync.queue_size);
-    RCLCPP_INFO(this->get_logger(), "  input.sync.slop_ns: %ld", static_cast<long>(slop_ns));
-    RCLCPP_INFO(this->get_logger(), "  output.topic: %s", params.output.topic.c_str());
-    RCLCPP_INFO(this->get_logger(), "  output.frame_id: %s", params.output.frame_id.c_str());
-    RCLCPP_INFO(this->get_logger(), "  transform.type: %u", static_cast<uint32_t>(params.transform_cfg.type));
+    printNodeParams(this->get_logger(), params);
     
     return params;
   } catch (const rclcpp::ParameterTypeException & ex) {
@@ -168,19 +200,13 @@ FusionNodeParameters FusionNode::handleParams()
  */
 void FusionNode::syncCallback(
   const sensor_msgs::msg::PointCloud2::ConstSharedPtr &a,
-  const sensor_msgs::msg::PointCloud2::ConstSharedPtr &b) 
+  const sensor_msgs::msg::PointCloud2::ConstSharedPtr &b)
 {
-  auto fused_cloud = fuse(a, b);
-  if (!fused_cloud) {
-    is_transmitting_ = false;
-    RCLCPP_WARN(this->get_logger(), "Fusion failed. Skipped publishing fused cloud message.");
-    return;
+  {
+    std::lock_guard<std::mutex> lock(queue_mutex_);
+    sync_queue_.push(SyncedData{a, b});
   }
-  pub_->publish(std::move(fused_cloud));
-  if (!is_transmitting_) {
-    RCLCPP_INFO(this->get_logger(), "Started transmitting fused point clouds...");
-    is_transmitting_ = true;
-  }
+  queue_cv_.notify_one();
 }
 
 /** 
@@ -230,13 +256,11 @@ sensor_msgs::msg::PointCloud2::ConstSharedPtr FusionNode::transformToOutputFrame
 
   try {
     const auto transform = lookupTransformToOutputFrame(cloud->header.frame_id);
-
     auto transformed = std::make_shared<sensor_msgs::msg::PointCloud2>();
     tf2::doTransform(*cloud, *transformed, transform);
-    transformed->header.frame_id = params_.output.frame_id;
-    transformed->header.stamp = transform.header.stamp;
+
     return transformed;
-  } catch (const tf2::TransformException & ex) {
+  } catch (const std::exception & ex) {
     RCLCPP_WARN(this->get_logger(),
       "Failed to transform cloud from '%s' to '%s': %s",
       cloud->header.frame_id.c_str(),
@@ -292,9 +316,9 @@ sensor_msgs::msg::PointCloud2::UniquePtr FusionNode::fuse(
     return {};
   }
 
-  const bool areFramesMismatched = transformed_a->header.frame_id != params_.output.frame_id ||
+  const bool areFramesNotMatching = transformed_a->header.frame_id != params_.output.frame_id ||
       transformed_b->header.frame_id != params_.output.frame_id;
-  if (areFramesMismatched) {
+  if (areFramesNotMatching) {
     RCLCPP_WARN(this->get_logger(), "Transformed clouds are not in output frame.");
     return {};
   }
@@ -355,9 +379,10 @@ sensor_msgs::msg::PointCloud2::UniquePtr FusionNode::fuse(
   auto fused = std::make_unique<sensor_msgs::msg::PointCloud2>();
 
   fused->header.frame_id = params_.output.frame_id;
-  fused->header.stamp = (rclcpp::Time(transformed_a->header.stamp) >= rclcpp::Time(transformed_b->header.stamp))
-                          ? transformed_a->header.stamp
-                          : transformed_b->header.stamp;
+  fused->header.stamp = this->get_clock()->now();
+  // fused->header.stamp = (rclcpp::Time(transformed_a->header.stamp) >= rclcpp::Time(transformed_b->header.stamp))
+  //                         ? transformed_a->header.stamp
+  //                         : transformed_b->header.stamp;
 
   fused->fields = transformed_a->fields;
   fused->is_bigendian = transformed_a->is_bigendian;
@@ -375,8 +400,6 @@ sensor_msgs::msg::PointCloud2::UniquePtr FusionNode::fuse(
   if (bytes_b != 0U) {
     std::memcpy(fused->data.data() + bytes_a, transformed_b->data.data(), bytes_b);
   }
-
-  fused->header.stamp = this->get_clock()->now();
 
   return fused;
 }

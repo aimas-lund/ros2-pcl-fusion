@@ -1,5 +1,6 @@
 fusion:
   ros__parameters:
+    use_sim_time: false
     input:
       topics: [
           "/your/cloud1", # <-- insert input topic
@@ -10,8 +11,8 @@ fusion:
           "your_frame2", # <-- insert frame ID for cloud2
         ]
       sync:
-        queue_size: 10 # queue size for message filtering
-        slop_ns: 100000000 # for approximate time sync
+        queue_size: 20 # queue size for message filtering
+        epsilon_ms: 100 # espilon window for approximate input message sync
     output:
       topic: "/fused_pointcloud" # <-- insert desired output topic
       frame_id: "fused_frame" # <-- insert desired output frame ID
