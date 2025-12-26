@@ -66,7 +66,6 @@ FusionNode::~FusionNode() {
   }
 }
 
-
 void FusionNode::workerLoop() {
   while (true) {
     SyncedData data;
@@ -76,8 +75,6 @@ void FusionNode::workerLoop() {
       if (stop_worker_ && sync_queue_.empty()) {
         break;
       }
-      auto queue_size_before_pop = sync_queue_.size();
-      RCLCPP_INFO(this->get_logger(), "Processing sync queue item. Queue size before pop: %zu", queue_size_before_pop);
       data = std::move(sync_queue_.front());
       sync_queue_.pop();
     }
