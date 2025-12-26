@@ -20,7 +20,7 @@ Fusion in this package is performed in the following steps:
 ## The node is designed to
 
 - Subscribe to two `PointCloud2` topics.
-- Time-align the two streams using `message_filters::ApproximateTime`.
+- Time-align the two streams using `message_filters::ApproximateEpsilonTime`.
 - Transform both clouds into `output.frame_id` using TF2.
 - Publish a single fused `PointCloud2` on `output.topic`.
 - Stamp the output message using the newer of the two transformed cloud stamps (note: transformation uses the TF stamp).
@@ -118,7 +118,5 @@ ros2 launch fusion fusion.launch.py
 ```
 
 ## Docker
-
-**This feature is still not functioning**
 
 This repo builds a container that runs `ros2 launch fusion fusion.launch.py` by default.
