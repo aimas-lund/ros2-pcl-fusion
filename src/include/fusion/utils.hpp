@@ -57,10 +57,6 @@ inline TransformType parseTransformType(const std::string &value)
 
 inline void printNodeParams(const rclcpp::Logger &logger, const FusionNodeParameters &params)
 {
-  const auto [slop_sec, slop_nsec] = params.input.sync.slop;
-  const int64_t slop_ms = static_cast<int64_t>(slop_sec) * 1000LL +
-    static_cast<int64_t>(slop_nsec) / 1000000LL;
-
   RCLCPP_INFO(logger, "FusionNode parameters:");
   RCLCPP_INFO(
     logger,
@@ -73,7 +69,7 @@ inline void printNodeParams(const rclcpp::Logger &logger, const FusionNodeParame
     params.input.frame_ids[0].c_str(),
     params.input.frame_ids[1].c_str());
   RCLCPP_INFO(logger, "  input.sync.queue_size: %u", params.input.sync.queue_size);
-  RCLCPP_INFO(logger, "  input.sync.slop_ms: %ld", static_cast<long>(slop_ms));
+  RCLCPP_INFO(logger, "  input.sync.epsilon_ms: %u", params.input.sync.epsilon_ms);
   RCLCPP_INFO(logger, "  output.topic: %s", params.output.topic.c_str());
   RCLCPP_INFO(logger, "  output.frame_id: %s", params.output.frame_id.c_str());
   RCLCPP_INFO(logger, "  transform.type: %u", static_cast<uint32_t>(params.transform_cfg.type));

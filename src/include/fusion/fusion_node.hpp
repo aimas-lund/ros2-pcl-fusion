@@ -4,7 +4,7 @@
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h>
-#include <message_filters/sync_policies/approximate_time.h>
+#include <message_filters/sync_policies/approximate_epsilon_time.h>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_sensor_msgs/tf2_sensor_msgs.hpp>
@@ -19,7 +19,7 @@
 namespace fusion
 {
 
-typedef message_filters::sync_policies::ApproximateTime<
+typedef message_filters::sync_policies::ApproximateEpsilonTime<
           sensor_msgs::msg::PointCloud2,
           sensor_msgs::msg::PointCloud2
         > FusionSyncPolicy;

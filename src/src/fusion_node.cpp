@@ -38,14 +38,12 @@ FusionNode::FusionNode(const rclcpp::NodeOptions & options)
 
     sync_ = std::make_shared<
       message_filters::Synchronizer<FusionSyncPolicy>>(
-      FusionSyncPolicy(params_.input.sync.queue_size),
+      FusionSyncPolicy(params_.input.sync.queue_size, rclcpp::Duration::from_nanoseconds(params_.input.sync.epsilon_ms * 1000000ULL)),
       cloudA_, cloudB_ );
 
   sync_->registerCallback(
     std::bind(&FusionNode::syncCallback, this, std::placeholders::_1, std::placeholders::_2)
   );
-  const auto [slop_sec, slop_nsec] = params_.input.sync.slop;
-  sync_->setMaxIntervalDuration(rclcpp::Duration(slop_sec, slop_nsec));
 }
 
 /**
@@ -89,17 +87,14 @@ FusionNodeParameters FusionNode::handleParams()
       rclcpp::ParameterValue(std::string{"static"}));
 
     const auto queue_size_param = this->get_parameter("input.sync.queue_size").as_int();
-    const auto slop_ms_param = static_cast<int64_t>(this->get_parameter("input.sync.slop_ms").as_int());
+    const auto epsilon_ms_param = static_cast<int64_t>(this->get_parameter("input.sync.epsilon_ms").as_int());
 
-    int64_t slop_ms_used = slop_ms_param;
-    if (slop_ms_used < 0LL) {
-      RCLCPP_WARN(this->get_logger(), "Configured input.sync.slop_ms < 0; clamping to 0");
-      slop_ms_used = 0LL;
+    int64_t epsilon_ms_used = epsilon_ms_param;
+    if (epsilon_ms_used < 0LL) {
+      RCLCPP_WARN(this->get_logger(), "Configured input.sync.epsilon_ms < 0; clamping to 0");
+      epsilon_ms_used = 0LL;
     }
-    const int64_t slop_ns = slop_ms_used * 1000000LL;
-    const auto sec = static_cast<uint32_t>(slop_ns / 1000000000LL);
-    const auto nsec = static_cast<uint32_t>(slop_ns % 1000000000LL);
-    params.input.sync.slop = std::make_tuple(sec, nsec);
+    params.input.sync.epsilon_ms = static_cast<uint32_t>(epsilon_ms_used);
     params.input.topics = this->get_parameter("input.topics").as_string_array();
     params.input.frame_ids = this->get_parameter("input.frame_ids").as_string_array();
     params.output.topic = this->get_parameter("output.topic").as_string();

@@ -20,9 +20,7 @@ struct FusionNodeParameters
         struct Sync
         {
             uint32_t queue_size;
-            std::tuple<int32_t, uint32_t> slop;
-
-            constexpr Sync() : queue_size(0U), slop{0, 0} {}
+            uint32_t epsilon_ms;
         };
 
         std::vector<std::string> topics;
