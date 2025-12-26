@@ -4,12 +4,9 @@
 
 - [ ] Expose correct ports in docker
 - [ ] Implement for ros2 humble
-- [x] Create launch file
-- [x] Use params.yaml
 - [ ] Option to only perform cloud validation on first synced message
 - [ ] Benchmark scripts
 - [ ] Define performance goals
-- [ ] CI/CD pipeline
 
 Note: some of the above may exist in-repo but still need additional work.
 
