@@ -8,8 +8,6 @@
 - [ ] Benchmark scripts
 - [ ] Define performance goals
 
-Note: some of the above may exist in-repo but still need additional work.
-
 ## Overview
 
 `ros2-pcl-fusion` provides a small ROS 2 node that **fuses two** incoming `sensor_msgs/msg/PointCloud2` streams at runtime.
