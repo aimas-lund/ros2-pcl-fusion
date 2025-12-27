@@ -275,6 +275,7 @@ sensor_msgs::msg::PointCloud2::ConstSharedPtr FusionNode::transformToOutputFrame
  * @param a First point cloud
  * @param b Second point cloud
  * @return True if layouts match, false otherwise
+ * @note Not necessary for point-wise operations, but required for fast concatenation
  */
 static bool hasMatchingPointCloud2Layout(
   const sensor_msgs::msg::PointCloud2 & a,
@@ -316,6 +317,8 @@ sensor_msgs::msg::PointCloud2::UniquePtr FusionNode::fuse(
     return {};
   }
 
+  // frame and layout matching might be checks that can be done once, assuming point clouds
+  // always come from the same sources. Might be option for later
   const bool areFramesNotMatching = transformed_a->header.frame_id != params_.output.frame_id ||
       transformed_b->header.frame_id != params_.output.frame_id;
   if (areFramesNotMatching) {
@@ -330,7 +333,7 @@ sensor_msgs::msg::PointCloud2::UniquePtr FusionNode::fuse(
 
   const size_t step = transformed_a->point_step;
   const bool isPointStepInvalid = step == 0U;
-  if (isPointStepInvalid) {
+  if (unlikely(isPointStepInvalid)) {
     RCLCPP_WARN(this->get_logger(), "Cannot fuse PointCloud2 with point_step of zero");
     return {};
   }
@@ -338,40 +341,43 @@ sensor_msgs::msg::PointCloud2::UniquePtr FusionNode::fuse(
   const size_t bytes_a = transformed_a->data.size();
   const size_t bytes_b = transformed_b->data.size();
   const bool isDataSizeInvalid = (bytes_a % step != 0U) || (bytes_b % step != 0U);
-  if (isDataSizeInvalid) {
+  if (unlikely(isDataSizeInvalid)) {
     RCLCPP_WARN(this->get_logger(), "Cannot fuse PointCloud2 with data size not divisible by point_step");
     return {};
   }
 
   const size_t points_a = bytes_a / step;
   const size_t points_b = bytes_b / step;
-  const bool isPointCountOverflowing = points_a > static_cast<size_t>(std::numeric_limits<uint32_t>::max()) ||
+  const bool isPointCountOverflowingSize = points_a > static_cast<size_t>(std::numeric_limits<uint32_t>::max()) ||
       points_b > static_cast<size_t>(std::numeric_limits<uint32_t>::max()) ||
       (points_a + points_b) > static_cast<size_t>(std::numeric_limits<uint32_t>::max());
-  if (isPointCountOverflowing) {
+  if (unlikely(isPointCountOverflowingSize)) {
     RCLCPP_WARN(this->get_logger(), "Cannot fuse as total point count exceeds uint32_t max");
     return {};
   }
 
-  if (bytes_a > (std::numeric_limits<size_t>::max() - bytes_b)) {
+  const bool isDataSizeOverflowingSize = bytes_a > std::numeric_limits<size_t>::max() - bytes_b;
+  if (unlikely(isDataSizeOverflowingSize)) {
     RCLCPP_WARN(this->get_logger(), "Cannot fuse as fused data size overflows size_t");
     return {};
   }
 
   const size_t fused_points = points_a + points_b;
-  if (fused_points != 0U && step > (std::numeric_limits<size_t>::max() / fused_points)) {
+  const bool isFusedPointCountOverflowingSize = fused_points != 0U && step > (std::numeric_limits<size_t>::max() / fused_points);
+  if (unlikely(isFusedPointCountOverflowingSize)) {
     RCLCPP_WARN(this->get_logger(), "Cannot fuse as fused row_step overflows size_t");
     return {};
   }
 
   const size_t fused_row_step = fused_points * step;
-  if (fused_row_step > static_cast<size_t>(std::numeric_limits<uint32_t>::max())) {
+  const bool isFusedRowStepOverflowingUint32 = fused_row_step > static_cast<size_t>(std::numeric_limits<uint32_t>::max());
+  if (unlikely(isFusedRowStepOverflowingUint32)) {
     RCLCPP_WARN(this->get_logger(), "Cannot fuse as fused row_step exceeds uint32_t max");
     return {};
   }
 
   const size_t fused_bytes = bytes_a + bytes_b;
-  if (fused_bytes != fused_row_step) {
+  if (unlikely(fused_bytes != fused_row_step)) {
     RCLCPP_WARN(this->get_logger(), "Cannot fuse as fused data size does not match fused row_step");
     return {};
   }
