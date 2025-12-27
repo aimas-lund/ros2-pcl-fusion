@@ -2,7 +2,7 @@
 
 ## TODO
 
-- [ ] Expose correct ports in docker
+- [ ] Docker compose file
 - [ ] Implement for ros2 humble
 - [ ] Option to only perform cloud validation on first synced message
 - [ ] Benchmark scripts
