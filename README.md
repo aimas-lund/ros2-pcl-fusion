@@ -7,10 +7,11 @@
 - [ ] Option to only perform cloud validation on first synced message
 - [ ] Benchmark scripts
 - [ ] Define performance goals
+- [ ] Flexible PCL fusion (pcl_conversion)
 
 ## Overview
 
-`ros2-pcl-fusion` provides a small ROS 2 node that **fuses two** incoming `sensor_msgs/msg/PointCloud2` streams at runtime.
+`ros2-pcl-fusion` provides a small ROS 2 node that fuses two incoming `sensor_msgs/msg/PointCloud2` streams at runtime.
 
 Fusion in this package is performed in the following steps:
 
@@ -50,7 +51,7 @@ After both clouds are in the output frame, their layouts must match:
 
 - `point_step` must match
 - `is_bigendian` must match
-- `fields` must match **element-by-element** (`name`, `offset`, `datatype`, `count`)
+- `fields` must match element-by-element (`name`, `offset`, `datatype`, `count`)
 - `data.size()` must be divisible by `point_step` for both messages
 
 If any of these checks fail, the node does not publish.
