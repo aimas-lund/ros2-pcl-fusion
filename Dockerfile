@@ -20,6 +20,4 @@ WORKDIR /pcl_fusion_ws
 COPY --from=build /pcl_fusion_ws/install /pcl_fusion_ws/install
 COPY --from=build /pcl_fusion_ws/build /pcl_fusion_ws/build
 
-RUN ls -al /pcl_fusion_ws
-
 ENTRYPOINT ["/bin/bash", "-c", "source /opt/ros/jazzy/setup.bash && source /pcl_fusion_ws/install/setup.bash && ros2 launch fusion fusion.launch.py"]
