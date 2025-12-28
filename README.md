@@ -95,21 +95,14 @@ source install/setup.bash
 
 ## Run
 
-### Run directly
-
-```bash
-source install/setup.bash
-ros2 run fusion fusion_node_exe
-```
-
-### Run with a parameter file
+### Run directly with the parameter file
 
 ```bash
 source install/setup.bash
 ros2 run fusion fusion_node_exe --ros-args --params-file src/config/params.yaml
 ```
 
-### Launch
+### Run with launch file
 
 The package includes a launch file at `src/launch/fusion.launch.py`:
 
