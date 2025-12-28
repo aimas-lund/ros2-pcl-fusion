@@ -121,3 +121,6 @@ ros2 launch fusion fusion.launch.py
 ## Docker
 
 This repo builds a container that runs `ros2 launch fusion fusion.launch.py` by default.
+
+### Ports
+If you don't want to host a containerized fusion node on `--network host`, you can use [this article](https://docs.ros.org/en/jazzy/Concepts/Intermediate/About-Domain-ID.html) to figure out what ports to expose.
