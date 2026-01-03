@@ -347,7 +347,7 @@ sensor_msgs::msg::PointCloud2::UniquePtr FusionNode::fuse(
   const bool isDataSizeInvalid = (bytes_a % step != 0U) || (bytes_b % step != 0U);
   if (unlikely(isDataSizeInvalid)) {
     RCLCPP_WARN(this->get_logger(), "Cannot fuse PointCloud2 with data size not divisible by point_step");
-    return {};
+    return nullptr;
   }
 
   const size_t points_a = bytes_a / step;
