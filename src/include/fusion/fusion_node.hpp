@@ -35,25 +35,36 @@ private:
     sensor_msgs::msg::PointCloud2::ConstSharedPtr a;
     sensor_msgs::msg::PointCloud2::ConstSharedPtr b;
   };
-  std::queue<SyncedData> sync_queue_;
 
-  std::mutex queue_mutex_;
-  std::condition_variable queue_cv_;
+  // sync queue & corresponding primitives
+  std::queue<SyncedData> sync_queue_;
+  std::mutex sync_queue_mutex_;
+  std::condition_variable sync_queue_cv_;
 
   std::thread worker_thread_;
   std::mutex transmit_mutex_;
 
+  // ROS2 interfaces
   message_filters::Subscriber<sensor_msgs::msg::PointCloud2> cloudA_;
   message_filters::Subscriber<sensor_msgs::msg::PointCloud2> cloudB_;
   std::shared_ptr<message_filters::Synchronizer<FusionSyncPolicy>> sync_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_;
+
+  // utils
   FusionNodeParameters params_{};
   tf2_ros::Buffer tf_buffer_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
-  bool stop_worker_ = false;
   std::unordered_map<std::string, geometry_msgs::msg::TransformStamped> static_tf_cache_;
-  bool is_transmitting_{false};
 
+  // flags
+  bool stop_worker_ = false;
+  bool is_transmitting_ = false;
+
+  // worker thread intermediate fuse buffers
+  sensor_msgs::msg::PointCloud2 transformed_a_buffer_;
+  sensor_msgs::msg::PointCloud2 transformed_b_buffer_;
+
+  // methods
   void workerLoop();
   void processSyncedData(const sensor_msgs::msg::PointCloud2::ConstSharedPtr &a,
                        const sensor_msgs::msg::PointCloud2::ConstSharedPtr &b);
@@ -64,8 +75,9 @@ private:
     const std::string & source_frame
   );
 
-  sensor_msgs::msg::PointCloud2::ConstSharedPtr transformToOutputFrame(
-    const sensor_msgs::msg::PointCloud2::ConstSharedPtr & cloud
+ const sensor_msgs::msg::PointCloud2 * transformToOutputFrame(
+    const sensor_msgs::msg::PointCloud2::ConstSharedPtr & in,
+    sensor_msgs::msg::PointCloud2 & out
   );
 
   void syncCallback(
