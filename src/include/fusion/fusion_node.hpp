@@ -13,6 +13,10 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <queue>
 
 #include <geometry_msgs/msg/transform_stamped.hpp>
 
