@@ -8,10 +8,6 @@
 #include <string>
 #include <vector>
 #include <chrono>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
-#include <queue>
 
 namespace fusion
 {
@@ -62,8 +58,14 @@ void FusionNode::workerLoop() {
     SyncedData data;
     {
       std::unique_lock<std::mutex> lock(sync_queue_mutex_);
-      sync_queue_cv_.wait(lock, [this]() { return !sync_queue_.empty() || stop_worker_; });
-      if (stop_worker_ && sync_queue_.empty()) {
+      sync_queue_cv_.wait(lock, [this]() { 
+        return !sync_queue_.empty() || stop_worker_; 
+      });
+      if (stop_worker_) {
+        // clear remaining data in queue if stopping
+        while (!sync_queue_.empty()) {
+          sync_queue_.pop();
+        }
         break;
       }
       data = std::move(sync_queue_.front());
@@ -99,7 +101,7 @@ void FusionNode::processSyncedData(const sensor_msgs::msg::PointCloud2::ConstSha
 FusionNodeParameters FusionNode::handleParams()
 {
   const uint32_t default_queue_size = 10U;
-  const int64_t default_slop_ms = 100LL;
+  const int64_t default_epsilon_ms = 100LL;
   FusionNodeParameters params{};
 
   try {
@@ -114,8 +116,8 @@ FusionNodeParameters FusionNode::handleParams()
       "input.sync.queue_size",
       rclcpp::ParameterValue(static_cast<int64_t>(default_queue_size)));
     declare_if_needed(
-      "input.sync.slop_ms",
-      rclcpp::ParameterValue(static_cast<int64_t>(default_slop_ms)));
+      "input.sync.epsilon_ms",
+      rclcpp::ParameterValue(static_cast<int64_t>(default_epsilon_ms)));
     declare_if_needed(
       "input.topics",
       rclcpp::ParameterValue(std::vector<std::string>{"/cloud1", "/cloud2"}));
@@ -175,13 +177,14 @@ FusionNodeParameters FusionNode::handleParams()
       throw std::runtime_error("input.frame_ids length must match input.topics length");
     }
 
-    const auto queueSize = queue_size_param <= 0 ? 0U : static_cast<uint32_t>(queue_size_param);
-    params.input.sync.queue_size = queueSize == 0U ? default_queue_size : queueSize;
-    if (queueSize == 0U) {
+    if (queue_size_param <= 0U) {
+      params.input.sync.queue_size = default_queue_size;
       RCLCPP_WARN(
         this->get_logger(),
         "Configured input.sync.queue_size <= 0; defaulting to %u",
-        params.input.sync.queue_size);
+        default_queue_size);
+    } else {
+      params.input.sync.queue_size = static_cast<uint32_t>(queue_size_param);
     }
 
     printNodeParams(this->get_logger(), params);
@@ -204,6 +207,17 @@ void FusionNode::syncCallback(
 {
   {
     std::lock_guard<std::mutex> lock(sync_queue_mutex_);
+    bool dropped_any_msg = false;
+    while (sync_queue_.size() >= params_.input.sync.queue_size) {
+      sync_queue_.pop();
+      dropped_any_msg = true;
+    }
+
+    if (dropped_any_msg) {
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+        "Sync queue full (size=%u). Dropping oldest data...",
+        params_.input.sync.queue_size);
+    }
     sync_queue_.push(SyncedData{a, b});
   }
   sync_queue_cv_.notify_one();
