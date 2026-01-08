@@ -1,6 +1,6 @@
 # ros2-pcl-fusion
 
-[![Build Docker Image](https://img.shields.io/github/actions/workflow/status/aimas-lund/ros2-pcl-fusion/build.yaml?branch=main&label=Docker%20Image)](https://github.com/aimas-lund/ros2-pcl-fusion/actions/workflows/on-push.yaml)
+[![Build Docker Image](https://img.shields.io/github/actions/workflow/status/aimas-lund/ros2-pcl-fusion/build.yaml?branch=main&label=docker%20image)](https://github.com/aimas-lund/ros2-pcl-fusion/actions/workflows/on-push.yaml)
 [![License](https://img.shields.io/github/license/aimas-lund/ros2-pcl-fusion)](https://github.com/aimas-lund/ros2-pcl-fusion/blob/main/LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/aimas-lund/ros2-pcl-fusion)](https://github.com/aimas-lund/ros2-pcl-fusion/commits/main)
 [![Issues](https://img.shields.io/github/issues/aimas-lund/ros2-pcl-fusion)](https://github.com/aimas-lund/ros2-pcl-fusion/issues)
