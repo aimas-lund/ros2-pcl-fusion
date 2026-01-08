@@ -26,16 +26,6 @@ Fusion in this package is performed in the following steps:
 
 ### Build the image (Jazzy)
 
-```bash
-docker build -t ros2-pcl-fusion:jazzy --build-arg ROS_DISTRO=jazzy .
-```
-
-### Build the image (Humble)
-
-```bash
-docker build -t ros2-pcl-fusion:humble --build-arg ROS_DISTRO=humble .
-```
-
 - Subscribe to two `PointCloud2` topics.
 - Time-align the two streams using `message_filters::ApproximateEpsilonTime`.
 - Transform both clouds into `output.frame_id` using TF2.
@@ -139,13 +129,13 @@ This repo builds a container that runs `ros2 launch fusion fusion.launch.py` by 
 ### Build the image (Jazzy)
 
 ```bash
-docker build -t ros2-pcl-fusion:jazzy --build-arg ROS_DISTRO=jazzy .
+docker build -t pcl-fusion:jazzy --build-arg ROS_DISTRO=jazzy .
 ```
 
 ### Build the image (Humble)
 
 ```bash
-docker build -t ros2-pcl-fusion:humble --build-arg ROS_DISTRO=humble .
+docker build -t pcl-fusion:humble --build-arg ROS_DISTRO=humble .
 ```
 
 ### Ports
