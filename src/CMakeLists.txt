@@ -13,9 +13,22 @@ find_package(sensor_msgs REQUIRED)
 find_package(message_filters REQUIRED)
 find_package(tf2_sensor_msgs REQUIRED)
 
+set(_fusion_ros_distro_defines "")
+if(DEFINED ENV{ROS_DISTRO})
+  set(_fusion_ros_distro "$ENV{ROS_DISTRO}")
+  if(_fusion_ros_distro STREQUAL "humble")
+    list(APPEND _fusion_ros_distro_defines FUSION_ROS_DISTRO_HUMBLE=1)
+  elseif(_fusion_ros_distro STREQUAL "jazzy")
+    list(APPEND _fusion_ros_distro_defines FUSION_ROS_DISTRO_JAZZY=1)
+  endif()
+endif()
+
 add_library(fusion_node SHARED
   src/fusion_node.cpp
 )
+if(_fusion_ros_distro_defines)
+  target_compile_definitions(fusion_node PUBLIC ${_fusion_ros_distro_defines})
+endif()
 target_compile_features(fusion_node PUBLIC cxx_std_17)
 target_include_directories(fusion_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -32,6 +45,9 @@ ament_target_dependencies(fusion_node
 
 add_executable(fusion_node_exe src/main.cpp)
 target_link_libraries(fusion_node_exe fusion_node)
+if(_fusion_ros_distro_defines)
+  target_compile_definitions(fusion_node_exe PUBLIC ${_fusion_ros_distro_defines})
+endif()
 ament_target_dependencies(fusion_node_exe
   rclcpp
   tf2

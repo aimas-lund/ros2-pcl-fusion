@@ -1,5 +1,25 @@
+ARG ROS_DISTRO=jazzy
+
+# --- Base stage
+FROM ros:${ROS_DISTRO} AS base
+
+SHELL ["/bin/bash", "-c"]
+
+WORKDIR /pcl_fusion_ws
+
+ARG ROS_DISTRO
+ENV ROS_DISTRO=${ROS_DISTRO}
+
+RUN apt-get update \
+	&& apt-get install -y --no-install-recommends \
+	python3-rosdep \
+	&& rm -rf /var/lib/apt/lists/* \
+	&& rosdep init || true \
+	&& rosdep update
+
+
 # --- Build stage
-FROM ros:jazzy AS build
+FROM base AS build
 
 SHELL ["/bin/bash", "-c"]
 
@@ -7,11 +27,13 @@ WORKDIR /pcl_fusion_ws
 
 COPY . .
 
-RUN source /opt/ros/jazzy/setup.bash \
+RUN rosdep install --from-paths src --ignore-src -r -y
+
+RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
 	&& colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 # --- Runtime stage
-FROM ros:jazzy AS runtime
+FROM base AS runtime
 
 SHELL ["/bin/bash", "-c"]
 
@@ -20,4 +42,4 @@ WORKDIR /pcl_fusion_ws
 COPY --from=build /pcl_fusion_ws/install /pcl_fusion_ws/install
 COPY --from=build /pcl_fusion_ws/build /pcl_fusion_ws/build
 
-ENTRYPOINT ["/bin/bash", "-c", "source /opt/ros/jazzy/setup.bash && source /pcl_fusion_ws/install/setup.bash && ros2 launch fusion fusion.launch.py"]
+ENTRYPOINT ["/bin/bash", "-c", "source /opt/ros/${ROS_DISTRO}/setup.bash && source /pcl_fusion_ws/install/setup.bash && ros2 launch fusion fusion.launch.py"]

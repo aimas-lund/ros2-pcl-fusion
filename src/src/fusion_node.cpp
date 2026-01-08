@@ -30,10 +30,21 @@ FusionNode::FusionNode(const rclcpp::NodeOptions & options)
   pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
     params_.output.topic, qos);
 
+#if defined(FUSION_ROS_DISTRO_HUMBLE)
   sync_ = std::make_shared<
     message_filters::Synchronizer<FusionSyncPolicy>>(
-    FusionSyncPolicy(params_.input.sync.queue_size, rclcpp::Duration::from_nanoseconds(params_.input.sync.epsilon_ms * 1000000ULL)),
-    cloudA_, cloudB_ );
+    FusionSyncPolicy(params_.input.sync.queue_size),
+    cloudA_, cloudB_);
+  sync_->setMaxIntervalDuration(
+    rclcpp::Duration::from_nanoseconds(params_.input.sync.epsilon_ms * 1000000ULL));
+#else
+  sync_ = std::make_shared<
+    message_filters::Synchronizer<FusionSyncPolicy>>(
+    FusionSyncPolicy(
+      params_.input.sync.queue_size,
+      rclcpp::Duration::from_nanoseconds(params_.input.sync.epsilon_ms * 1000000ULL)),
+    cloudA_, cloudB_);
+#endif
 
   sync_->registerCallback(
     std::bind(&FusionNode::syncCallback, this, std::placeholders::_1, std::placeholders::_2)
