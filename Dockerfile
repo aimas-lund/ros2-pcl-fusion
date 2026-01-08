@@ -7,9 +7,6 @@ SHELL ["/bin/bash", "-c"]
 
 WORKDIR /pcl_fusion_ws
 
-ARG ROS_DISTRO
-ENV ROS_DISTRO=${ROS_DISTRO}
-
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends \
 	python3-rosdep \
