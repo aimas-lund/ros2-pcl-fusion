@@ -1,9 +1,14 @@
 # ros2-pcl-fusion
 
+[![Build Docker Image](https://img.shields.io/github/actions/workflow/status/aimas-lund/ros2-pcl-fusion/build.yaml?branch=main&label=Docker%20build)](https://github.com/aimas-lund/ros2-pcl-fusion/actions/workflows/build.yaml)
+[![License](https://img.shields.io/github/license/aimas-lund/ros2-pcl-fusion)](https://github.com/aimas-lund/ros2-pcl-fusion/blob/main/LICENSE)
+[![Last commit](https://img.shields.io/github/last-commit/aimas-lund/ros2-pcl-fusion)](https://github.com/aimas-lund/ros2-pcl-fusion/commits/main)
+[![Issues](https://img.shields.io/github/issues/aimas-lund/ros2-pcl-fusion)](https://github.com/aimas-lund/ros2-pcl-fusion/issues)
+[![Stars](https://img.shields.io/github/stars/aimas-lund/ros2-pcl-fusion?style=social)](https://github.com/aimas-lund/ros2-pcl-fusion/stargazers)
+
 ## TODO
 
 - [ ] Docker compose file
-- [ ] Implement for ros2 humble
 - [ ] Option to only perform cloud validation on first synced message
 - [ ] Benchmark scripts
 - [ ] Define performance goals
@@ -86,6 +91,11 @@ An example parameter file lives at: `src/config/params.yaml`.
 
 ## Build
 
+### Supported ROS distros
+
+This repo currently supports ROS2 `humble` and `jazzy`. The build automatically checks `ROS_DISTRO` to select the right compile-time settings.
+
+
 From the repo root:
 
 ```bash
@@ -114,6 +124,18 @@ ros2 launch fusion fusion.launch.py
 ## Docker
 
 This repo builds a container that runs `ros2 launch fusion fusion.launch.py` by default.
+
+### Build the image (Jazzy)
+
+```bash
+docker build -t ros2-pcl-fusion:jazzy --build-arg ROS_DISTRO=jazzy .
+```
+
+### Build the image (Humble)
+
+```bash
+docker build -t ros2-pcl-fusion:humble --build-arg ROS_DISTRO=humble .
+```
 
 ### Ports
 If you don't want to attach the containerized fusion node on the hosts machine's network with `--network=host`, you can use [this article](https://docs.ros.org/en/jazzy/Concepts/Intermediate/About-Domain-ID.html) to figure out what ports to expose.
