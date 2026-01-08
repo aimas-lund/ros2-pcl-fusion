@@ -1,7 +1,7 @@
 ARG ROS_DISTRO=jazzy
 
-# --- Base stage
-FROM ros:${ROS_DISTRO} AS base
+# --- Defining base 
+FROM ros:${ROS_DISTRO}-ros-base AS base
 
 SHELL ["/bin/bash", "-c"]
 
@@ -14,7 +14,8 @@ RUN apt-get update \
 	&& apt-get install -y --no-install-recommends \
 	python3-rosdep \
 	&& rm -rf /var/lib/apt/lists/* \
-	&& rosdep init || true \
+	&& if [ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]; then rosdep init; fi \
+	&& rosdep fix-permissions \
 	&& rosdep update
 
 
