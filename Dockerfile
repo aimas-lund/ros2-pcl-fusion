@@ -15,7 +15,6 @@ RUN apt-get update \
 	&& rosdep fix-permissions \
 	&& rosdep update
 
-
 # --- Build stage
 FROM base AS build
 
