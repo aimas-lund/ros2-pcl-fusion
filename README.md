@@ -9,21 +9,21 @@
 ## TODO
 
 - [ ] Docker compose file
-- [ ] Option to only perform cloud validation on first synced message
-- [ ] Benchmark scripts
-- [ ] Define performance goals
-- [ ] Flexible PCL fusion (pcl_conversion)
-
-## Overview
-
-`ros2-pcl-fusion` provides a small ROS 2 node that fuses two incoming `sensor_msgs/msg/PointCloud2` streams at runtime.
-
-Fusion in this package is performed in the following steps:
-
-- each input cloud is transformed into a common output frame via TF2
 - the clouds are fused by concatenating the raw `PointCloud2.data` buffers
 
 ## The node is designed to
+
+### Build the image (Jazzy)
+
+```bash
+docker build -t ros2-pcl-fusion:jazzy --build-arg ROS_DISTRO=jazzy .
+```
+
+### Build the image (Humble)
+
+```bash
+docker build -t ros2-pcl-fusion:humble --build-arg ROS_DISTRO=humble .
+```
 
 - Subscribe to two `PointCloud2` topics.
 - Time-align the two streams using `message_filters::ApproximateEpsilonTime`.
