@@ -6,11 +6,20 @@ on:
       - jazzy
 
 jobs:
-  build-docker:
+  build-docker-jazzy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Build Docker Image
         run: |
-          docker build -t fusion-node:latest .
+          docker build -t fusion-node:jazzy . --build-arg ROS_DISTRO=jazzy
+
+  build-docker-humble:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker Image
+        run: |
+          docker build -t fusion-node:humble . --build-arg ROS_DISTRO=humble
