@@ -76,4 +76,10 @@ WORKDIR /pcl_fusion_ws
 COPY --from=build /pcl_fusion_ws/install /pcl_fusion_ws/install
 COPY --from=build /pcl_fusion_ws/build /pcl_fusion_ws/build
 
+# Create the directory used for bind-mounting an override params file.
+USER root
+RUN mkdir -p /pcl_fusion_ws/install/fusion/share/fusion/config/mnt \
+	&& chown -R ${USERNAME}:${USER_GID} /pcl_fusion_ws/install/fusion/share/fusion/config
+USER ${USERNAME}
+
 ENTRYPOINT ["/bin/bash", "-c", "source /opt/ros/${ROS_DISTRO}/setup.bash && source /pcl_fusion_ws/install/setup.bash && ros2 launch fusion fusion.launch.py"]
