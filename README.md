@@ -1,6 +1,7 @@
 # ros2-pcl-fusion
 
-[![Build Docker Image](https://img.shields.io/github/actions/workflow/status/aimas-lund/ros2-pcl-fusion/build.yaml?branch=main&label=docker%20image)](https://github.com/aimas-lund/ros2-pcl-fusion/actions/workflows/on-push.yaml)
+[![Build Docker Image](https://img.shields.io/github/actions/workflow/status/aimas-lund/ros2-pcl-fusion/on-push.yaml?branch=main&label=docker%20image)](https://github.com/aimas-lund/ros2-pcl-fusion/actions/workflows/on-push.yaml)
+[![Docker Hub](https://img.shields.io/docker/pulls/aimaslund/pcl-fusion?label=docker%20pulls)](https://hub.docker.com/r/aimaslund/pcl-fusion)
 [![License](https://img.shields.io/github/license/aimas-lund/ros2-pcl-fusion)](https://github.com/aimas-lund/ros2-pcl-fusion/blob/main/LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/aimas-lund/ros2-pcl-fusion)](https://github.com/aimas-lund/ros2-pcl-fusion/commits/main)
 [![Issues](https://img.shields.io/github/issues/aimas-lund/ros2-pcl-fusion)](https://github.com/aimas-lund/ros2-pcl-fusion/issues)
@@ -96,7 +97,6 @@ An example parameter file lives at: `src/config/params.yaml`.
 
 This repo currently supports ROS2 `humble` and `jazzy`. The build automatically checks `ROS_DISTRO` to select the right compile-time settings.
 
-
 From the repo root:
 
 ```bash
@@ -139,4 +139,5 @@ docker build -t pcl-fusion:humble --build-arg ROS_DISTRO=humble .
 ```
 
 ### Ports
+
 If you don't want to attach the containerized fusion node on the hosts machine's network with `--network=host`, you can use [this article](https://docs.ros.org/en/jazzy/Concepts/Intermediate/About-Domain-ID.html) to figure out what ports to expose.
