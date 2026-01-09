@@ -138,6 +138,40 @@ docker build -t pcl-fusion:jazzy --build-arg ROS_DISTRO=jazzy .
 docker build -t pcl-fusion:humble --build-arg ROS_DISTRO=humble .
 ```
 
+### Run pre-built Docker images from DockerHub
+
+The launch file will automatically use a mounted parameter file if it exists at:
+
+```bash
+/pcl_fusion_ws/install/fusion/share/fusion/config/mnt/params.yaml
+```
+
+Otherwise it falls back to the default packaged file:
+
+```bash
+/pcl_fusion_ws/install/fusion/share/fusion/config/params.yaml
+```
+
+This is intended for container usage (including the prebuilt Docker Hub images).
+
+#### Parameter file mount example
+
+```bash
+HOST_PARAMS_DIR=/path/to/your/params_dirctory
+
+docker run --rm --network=host \
+  -v "${HOST_PARAMS_DIR}:/pcl_fusion_ws/install/fusion/share/fusion/config/mnt:ro" \
+  aimaslund/pcl-fusion:jazzy
+```
+
+Alternative (mount a single file from current directory):
+
+```bash
+docker run --rm --network=host \
+  -v "$(pwd)/params.yaml:/pcl_fusion_ws/install/fusion/share/fusion/config/mnt/params.yaml:ro" \
+  aimaslund/pcl-fusion:jazzy
+```
+
 ### Ports
 
 If you don't want to attach the containerized fusion node on the hosts machine's network with `--network=host`, you can use [this article](https://docs.ros.org/en/jazzy/Concepts/Intermediate/About-Domain-ID.html) to figure out what ports to expose.

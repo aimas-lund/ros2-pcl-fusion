@@ -1,0 +1,11 @@
+services:
+  fusion-node:
+    image: aimaslund/pcl-fusion:jazzy # <-- insert desired image tag (jazzy, humble)
+    network_mode: host
+    environment:
+      ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-0}
+    volumes:
+      - type: bind
+        source: ./src/config/params.yaml # <-- defaulting to relative path, but can be whatever you like
+        target: /pcl_fusion_ws/install/fusion/share/fusion/config/mnt/params.yaml
+        read_only: true
