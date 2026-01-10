@@ -157,16 +157,6 @@ This is intended for container usage (including the prebuilt Docker Hub images).
 #### Parameter file mount example
 
 ```bash
-HOST_PARAMS_DIR=/path/to/your/params_dirctory
-
-docker run --rm --network=host \
-  -v "${HOST_PARAMS_DIR}:/pcl_fusion_ws/install/fusion/share/fusion/config/mnt:ro" \
-  aimaslund/pcl-fusion:jazzy
-```
-
-Alternative (mount a single file from current directory):
-
-```bash
 docker run --rm --network=host \
   -v "$(pwd)/params.yaml:/pcl_fusion_ws/install/fusion/share/fusion/config/mnt/params.yaml:ro" \
   aimaslund/pcl-fusion:jazzy
