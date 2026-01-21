@@ -39,13 +39,13 @@ Fusion in this package is performed in the following steps:
 - No point cloud registration/alignment (no ICP / NDT / scan matching).
   - The node assumes the TF tree already provides the correct relative transforms.
 - No filtering, downsampling, de-duplication, outlier removal, etc.
-- No field conversion or “best effort” merging when point layouts differ.
+- No field conversion or best effort merging when point layouts differ.
   - If the two `PointCloud2` layouts differ, fusion is skipped.
 - No support for fusing more than two point clouds.
 
 ## Point cloud matching requirements
 
-Fusion uses a fast “byte concatenation” approach, so the two input clouds must be compatible.
+Fusion uses a byte concatenation approach, so the two input clouds must be compatible.
 
 ### 1) Frames / transforms must be available
 
@@ -65,7 +65,7 @@ If any of these checks fail, the node does not publish.
 
 ### 3) Output cloud is unorganized
 
-This node **does not preserve** any organized point cloud structure.
+This node **does not preserve any organized point cloud structure**.
 
 - The published cloud always uses `height = 1`.
 - Any `height/width` organization (e.g., image-like LiDAR rings) is not retained.
